@@ -1,0 +1,569 @@
+---
+title: Product Events
+description: Events for product reviews and user favorites
+---
+
+## Overview
+
+Product events capture user interactions with products, including reviews and favorites management. These events enable real-time updates across the system and facilitate features like recommendation engines and product analytics.
+
+<Note>
+All product events are published to the `ventas` Kafka topic and include automatic payload sanitization and local persistence.
+</Note>
+
+## Event Categories
+
+<CardGroup cols={2}>
+  <Card title="Review Events" icon="star" color="#FFA500">
+    Product ratings and reviews
+  </Card>
+  <Card title="Favorite Events" icon="heart" color="#EF4444">
+    User wishlist management
+  </Card>
+</CardGroup>
+
+## Review Created Event
+
+### Description
+
+Emitted when a user submits a new product review, including rating and optional message.
+
+### Method Signature
+
+```java ECommerceEventService.java:115-126
+public void emitReviewCreated(
+    Integer productCode,
+    String message,
+    Float rateUpdated
+)
+```
+
+### Parameters
+
+- **productCode**: The product identifier (Integer)
+- **message**: Review text content (can be null)
+- **rateUpdated**: New average rating after including this review (Float)
+
+### Event Structure
+
+**Event Type:** `"POST: Review creada"`
+
+**Payload Schema:**
+
+```json
+{
+  "productCode": 12345,
+  "message": "Excellent product! Highly recommend it.",
+  "rateUpdated": 4.7
+}
+```
+
+### Usage Example
+
+```java
+@Service
+public class ReviewService {
+    private final ECommerceEventService eventService;
+    private final ReviewRepository reviewRepository;
+    
+    @Transactional
+    public Review createReview(Integer productCode, String message, Integer rating) {
+        // Save review to database
+        Review review = new Review();
+        review.setProductCode(productCode);
+        review.setMessage(message);
+        review.setRating(rating);
+        reviewRepository.save(review);
+        
+        // Calculate new average rating
+        Float newAverage = calculateAverageRating(productCode);
+        
+        // Update product rating
+        productService.updateRating(productCode, newAverage);
+        
+        // Emit event
+        eventService.emitReviewCreated(
+            productCode,
+            message,
+            newAverage
+        );
+        
+        return review;
+    }
+    
+    private Float calculateAverageRating(Integer productCode) {
+        List<Review> reviews = reviewRepository.findByProductCode(productCode);
+        return (float) reviews.stream()
+            .mapToInt(Review::getRating)
+            .average()
+            .orElse(0.0);
+    }
+}
+```
+
+<Warning>
+The `rateUpdated` parameter should reflect the new product average rating after including the current review, not just the individual review's rating.
+</Warning>
+
+### Complete Event Example
+
+```json
+{
+  "type": "POST: Review creada",
+  "timestamp": "2024-03-15T14:32:18.456-03:00",
+  "originModule": "ventas-app",
+  "payload": {
+    "productCode": 42,
+    "message": "Great laptop! Fast delivery and excellent build quality. The battery life is impressive.",
+    "rateUpdated": 4.75
+  }
+}
+```
+
+### Null Message Handling
+
+Reviews can be submitted with ratings only:
+
+```java
+// Rating-only review
+eventService.emitReviewCreated(
+    productCode,
+    null,  // No text message
+    4.8f
+);
+```
+
+```json
+{
+  "type": "POST: Review creada",
+  "timestamp": "2024-03-15T14:35:22.123-03:00",
+  "originModule": "ventas-app",
+  "payload": {
+    "productCode": 42,
+    "message": null,
+    "rateUpdated": 4.8
+  }
+}
+```
+
+## Add Favorite Event
+
+### Description
+
+Emitted when a user adds a product to their favorites/wishlist.
+
+### Method Signature
+
+```java ECommerceEventService.java:129-139
+public void emitAddFavorite(
+    String productCode,
+    Long id,
+    String nombre
+)
+```
+
+### Parameters
+
+- **productCode**: Product identifier (String)
+- **id**: Favorite entry ID (Long) - currently not included in payload
+- **nombre**: Product name
+
+<Note>
+The `id` parameter is present in the method signature but is not included in the event payload. Only `productCode` and `nombre` are emitted.
+</Note>
+
+### Event Structure
+
+**Event Type:** `"POST: Producto agregado a favoritos"`
+
+**Payload Schema:**
+
+```json
+{
+  "productCode": "LAPTOP-HP-15",
+  "nombre": "HP Laptop 15 inch Core i7"
+}
+```
+
+### Usage Example
+
+```java
+@Service
+public class FavoriteService {
+    private final ECommerceEventService eventService;
+    private final FavoriteRepository favoriteRepository;
+    
+    @Transactional
+    public Favorite addToFavorites(Long userId, String productCode) {
+        // Check if already favorited
+        if (favoriteRepository.existsByUserIdAndProductCode(userId, productCode)) {
+            throw new DuplicateException("Product already in favorites");
+        }
+        
+        // Get product details
+        Product product = productService.findByCode(productCode)
+            .orElseThrow(() -> new NotFoundException("Product not found"));
+        
+        // Save favorite
+        Favorite favorite = new Favorite();
+        favorite.setUserId(userId);
+        favorite.setProductCode(productCode);
+        favorite.setProductName(product.getName());
+        favoriteRepository.save(favorite);
+        
+        // Emit event
+        eventService.emitAddFavorite(
+            productCode,
+            favorite.getId(),
+            product.getName()
+        );
+        
+        return favorite;
+    }
+}
+```
+
+### Complete Event Example
+
+```json
+{
+  "type": "POST: Producto agregado a favoritos",
+  "timestamp": "2024-03-15T15:12:45.789-03:00",
+  "originModule": "ventas-app",
+  "payload": {
+    "productCode": "PHONE-SAMSUNG-A54",
+    "nombre": "Samsung Galaxy A54 5G 128GB"
+  }
+}
+```
+
+## Remove Favorite Event
+
+### Description
+
+Emitted when a user removes a product from their favorites/wishlist.
+
+### Method Signature
+
+```java ECommerceEventService.java:141-151
+public void emitRemoveFavorite(
+    String productCode,
+    Long id,
+    String nombre
+)
+```
+
+### Parameters
+
+- **productCode**: Product identifier (String)
+- **id**: Favorite entry ID (Long) - currently not included in payload
+- **nombre**: Product name
+
+### Event Structure
+
+**Event Type:** `"DELETE: Producto quitado de favoritos"`
+
+**Payload Schema:**
+
+```json
+{
+  "productCode": "LAPTOP-HP-15",
+  "nombre": "HP Laptop 15 inch Core i7"
+}
+```
+
+### Usage Example
+
+```java
+@Service
+public class FavoriteService {
+    private final ECommerceEventService eventService;
+    private final FavoriteRepository favoriteRepository;
+    
+    @Transactional
+    public void removeFromFavorites(Long userId, String productCode) {
+        Favorite favorite = favoriteRepository
+            .findByUserIdAndProductCode(userId, productCode)
+            .orElseThrow(() -> new NotFoundException("Favorite not found"));
+        
+        String productName = favorite.getProductName();
+        Long favoriteId = favorite.getId();
+        
+        // Delete favorite
+        favoriteRepository.delete(favorite);
+        
+        // Emit event
+        eventService.emitRemoveFavorite(
+            productCode,
+            favoriteId,
+            productName
+        );
+    }
+}
+```
+
+### Complete Event Example
+
+```json
+{
+  "type": "DELETE: Producto quitado de favoritos",
+  "timestamp": "2024-03-15T15:45:33.123-03:00",
+  "originModule": "ventas-app",
+  "payload": {
+    "productCode": "PHONE-SAMSUNG-A54",
+    "nombre": "Samsung Galaxy A54 5G 128GB"
+  }
+}
+```
+
+## Implementation Details
+
+### Review Event Implementation
+
+```java ECommerceEventService.java:115-126
+public void emitReviewCreated(Integer productCode, String message, Float rateUpdated) {
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("productCode", productCode);
+    payload.put("message", message);
+    payload.put("rateUpdated", rateUpdated);
+    
+    ensureBackendTokenAvailable("POST: Review creada");
+    
+    // Persist event locally
+    persistLocalEvent("POST: Review creada", payload);
+    
+    CoreEvent event = new CoreEvent("POST: Review creada", payload, originModuleName);
+    logger.info("Emitiendo evento de review: origin={} payloadType={}", 
+        originModuleName, payload.getClass().getSimpleName());
+    
+    coreApiClient.sendEvent(event);
+}
+```
+
+### Favorite Event Implementation
+
+```java ECommerceEventService.java:129-151
+// Add Favorite
+public void emitAddFavorite(String productCode, Long id, String nombre) {
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("productCode", productCode);
+    payload.put("nombre", nombre);
+    // Note: 'id' parameter is not included in payload
+    
+    ensureBackendTokenAvailable("POST: Producto agregado a favoritos");
+    persistLocalEvent("POST: Producto agregado a favoritos", payload);
+    
+    CoreEvent event = new CoreEvent(
+        "POST: Producto agregado a favoritos", 
+        payload, 
+        originModuleName
+    );
+    coreApiClient.sendEvent(event);
+}
+
+// Remove Favorite
+public void emitRemoveFavorite(String productCode, Long id, String nombre) {
+    Map<String, Object> payload = new HashMap<>();
+    payload.put("productCode", productCode);
+    payload.put("nombre", nombre);
+    // Note: 'id' parameter is not included in payload
+    
+    ensureBackendTokenAvailable("DELETE: Producto quitado de favoritos");
+    persistLocalEvent("DELETE: Producto quitado de favoritos", payload);
+    
+    CoreEvent event = new CoreEvent(
+        "DELETE: Producto quitado de favoritos", 
+        payload, 
+        originModuleName
+    );
+    coreApiClient.sendEvent(event);
+}
+```
+
+## Event Consumption
+
+Product events can be consumed by the Ventas service itself (if enabled) or other services:
+
+```java VentasEventsListener.java:24-26
+@KafkaListener(topics = "${ventas.kafka.topic:ventas.events}")
+public void onMessage(@Payload EventMessage msg) {
+    // Handle event
+}
+```
+
+### Event Handlers
+
+```java VentasEventsListener.java:58-72
+private void dispatch(String normalizedType, EventMessage msg) {
+    switch (normalizedType) {
+        case "post: review creada" -> handleReviewCreada(msg);
+        case "post: producto agregado a favoritos" -> handleFavoritoAgregado(msg);
+        case "delete: producto quitado de favoritos" -> handleFavoritoQuitado(msg);
+        // ... other cases
+    }
+}
+
+private void handleReviewCreada(EventMessage msg) {
+    log.info("[Ventas][Handler] Review creada payload={}", msg.getPayload());
+    // TODO: Process review (update analytics, trigger notifications, etc.)
+}
+
+private void handleFavoritoAgregado(EventMessage msg) {
+    log.info("[Ventas][Handler] Producto agregado a favoritos payload={}", msg.getPayload());
+    // TODO: Update recommendations, track user preferences
+}
+
+private void handleFavoritoQuitado(EventMessage msg) {
+    log.info("[Ventas][Handler] Producto quitado de favoritos payload={}", msg.getPayload());
+    // TODO: Update recommendations
+}
+```
+
+<Note>
+By default, Ventas service does not listen to its own events (`ventas.kafka.listen-ventas=false`). Enable this if you need internal event processing.
+</Note>
+
+## Event Processing Examples
+
+### Review Analytics Processing
+
+<CodeGroup>
+
+```java Analytics Service
+@Service
+public class ReviewAnalyticsService {
+    
+    public void processReviewEvent(EventMessage msg) {
+        Map<String, Object> payload = (Map<String, Object>) msg.getPayload();
+        
+        Integer productCode = (Integer) payload.get("productCode");
+        Float newRating = ((Number) payload.get("rateUpdated")).floatValue();
+        String message = (String) payload.get("message");
+        
+        // Update product analytics
+        analyticsRepository.incrementReviewCount(productCode);
+        analyticsRepository.updateAverageRating(productCode, newRating);
+        
+        // Perform sentiment analysis if message exists
+        if (message != null && !message.isBlank()) {
+            SentimentScore sentiment = sentimentAnalyzer.analyze(message);
+            analyticsRepository.updateSentiment(productCode, sentiment);
+        }
+        
+        // Trigger notifications
+        if (newRating >= 4.5) {
+            notificationService.notifyHighRating(productCode);
+        }
+    }
+}
+```
+
+```java Recommendation Service
+@Service
+public class RecommendationService {
+    
+    public void processFavoriteAdded(EventMessage msg) {
+        Map<String, Object> payload = (Map<String, Object>) msg.getPayload();
+        
+        String productCode = (String) payload.get("productCode");
+        String productName = (String) payload.get("nombre");
+        
+        // Get user from context or event metadata
+        Long userId = extractUserId(msg);
+        
+        // Update user preference profile
+        userPreferenceService.recordFavorite(userId, productCode);
+        
+        // Generate recommendations based on similar products
+        List<Product> recommendations = 
+            recommendationEngine.findSimilarProducts(productCode);
+        
+        // Cache recommendations for quick access
+        cacheService.cacheRecommendations(userId, recommendations);
+    }
+}
+```
+
+</CodeGroup>
+
+## Configuration
+
+### Consumer Configuration
+
+```properties application.properties
+# Enable/disable Ventas event consumption
+ventas.kafka.listen-ventas=false
+
+# Topic configuration
+ventas.kafka.topic=ventas
+ventas.kafka.concurrency=3
+```
+
+### Event Origin
+
+```properties
+# Origin module name in events
+messaging.origin-module=${keycloak.client-id:Ecommerce}
+```
+
+## Testing Events
+
+You can test event emission using the service directly:
+
+<CodeGroup>
+
+```java Review Event Test
+@Test
+public void testEmitReviewCreated() {
+    Integer productCode = 42;
+    String message = "Great product!";
+    Float rating = 4.5f;
+    
+    eventService.emitReviewCreated(productCode, message, rating);
+    
+    // Verify event was persisted
+    Event event = eventRepository.findTopByTypeOrderByTimestampDesc(
+        "POST: Review creada"
+    );
+    assertThat(event).isNotNull();
+    assertThat(event.getPayload()).contains("\"productCode\":42");
+}
+```
+
+```java Favorite Event Test
+@Test
+public void testEmitAddFavorite() {
+    String productCode = "LAPTOP-HP-15";
+    Long id = 1L;
+    String nombre = "HP Laptop";
+    
+    eventService.emitAddFavorite(productCode, id, nombre);
+    
+    // Verify event was persisted
+    Event event = eventRepository.findTopByTypeOrderByTimestampDesc(
+        "POST: Producto agregado a favoritos"
+    );
+    assertThat(event).isNotNull();
+    assertThat(event.getPayload()).contains("LAPTOP-HP-15");
+    assertThat(event.getPayload()).doesNotContain("\"id\":");  // ID not in payload
+}
+```
+
+</CodeGroup>
+
+## Related Topics
+
+<CardGroup cols={2}>
+  <Card title="Purchase Events" icon="cart-shopping" href="/events/purchase-events">
+    Order lifecycle events
+  </Card>
+  <Card title="Inventory Events" icon="warehouse" href="/events/inventory-events">
+    Stock and catalog sync
+  </Card>
+  <Card title="Event Overview" icon="diagram-project" href="/events/overview">
+    Architecture and Kafka setup
+  </Card>
+  <Card title="Reviews API" icon="code" href="/api/products/reviews">
+    Review endpoints
+  </Card>
+</CardGroup>

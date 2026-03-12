@@ -1,0 +1,137 @@
+---
+title: "Update Cart Item"
+api: "GET /cart-items/cart/{cartId}"
+description: "Retrieve all items in a specific cart"
+---
+
+## Authentication
+
+This endpoint requires Bearer token authentication. The user must have an active session.
+
+## Path Parameters
+
+<ParamField path="cartId" type="integer" required>
+  The unique identifier of the cart
+</ParamField>
+
+## Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication
+</ParamField>
+
+## Response
+
+Returns an array of cart items:
+
+<ResponseField name="id" type="integer">
+  The cart item ID
+</ResponseField>
+
+<ResponseField name="quantity" type="integer">
+  The quantity of this product in the cart
+</ResponseField>
+
+<ResponseField name="product" type="object">
+  Product details
+  <ResponseField name="id" type="integer">
+    Product ID
+  </ResponseField>
+  <ResponseField name="title" type="string">
+    Product title
+  </ResponseField>
+  <ResponseField name="description" type="string">
+    Product description
+  </ResponseField>
+  <ResponseField name="price" type="float">
+    Product unit price
+  </ResponseField>
+  <ResponseField name="stock" type="integer">
+    Available stock quantity
+  </ResponseField>
+  <ResponseField name="mediaSrc" type="array">
+    Array of product image URLs
+  </ResponseField>
+  <ResponseField name="productCode" type="integer">
+    Product code identifier
+  </ResponseField>
+  <ResponseField name="active" type="boolean">
+    Whether the product is currently active
+  </ResponseField>
+</ResponseField>
+
+## Error Responses
+
+- **401 Unauthorized**: User is not logged in or session is inactive
+- **500 Internal Server Error**: RuntimeException with message "Usuario no logueado"
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.example.com/cart-items/cart/1" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/cart-items/cart/1', {
+  method: 'GET',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const items = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.example.com/cart-items/cart/1',
+    headers={'Authorization': 'Bearer YOUR_TOKEN'}
+)
+items = response.json()
+```
+</CodeGroup>
+
+## Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "quantity": 2,
+    "product": {
+      "id": 10,
+      "title": "Wireless Mouse",
+      "description": "Ergonomic wireless mouse with USB receiver",
+      "price": 49.99,
+      "stock": 98,
+      "mediaSrc": ["https://example.com/images/mouse.jpg"],
+      "productCode": 1001,
+      "active": true
+    }
+  },
+  {
+    "id": 2,
+    "quantity": 1,
+    "product": {
+      "id": 20,
+      "title": "Mechanical Keyboard",
+      "description": "RGB mechanical keyboard with blue switches",
+      "price": 200.00,
+      "stock": 49,
+      "mediaSrc": [
+        "https://example.com/images/keyboard1.jpg",
+        "https://example.com/images/keyboard2.jpg"
+      ],
+      "productCode": 1002,
+      "active": true
+    }
+  }
+]
+```
+
+## Notes
+
+- This endpoint is useful for displaying cart contents with full product details
+- The user must be authenticated and have an active session
+- Only items belonging to the specified cart are returned

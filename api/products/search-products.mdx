@@ -1,0 +1,257 @@
+---
+title: 'Search Products'
+api: 'GET /products/search'
+description: 'Search products by title with synonym support'
+---
+
+## Endpoint
+
+```
+GET /products/search
+```
+
+## Description
+
+Searches for products by title using a text query with support for synonyms. Only active products are returned. The search is case-insensitive and matches partial titles.
+
+## Authentication
+
+No authentication required.
+
+## Query Parameters
+
+<ParamField query="query" type="string" required>
+  Search query to match against product titles. Supports synonym expansion based on configured synonyms.
+</ParamField>
+
+## Response
+
+Returns an array of Product objects matching the search criteria.
+
+<ResponseField name="array" type="array">
+  Array of matching products
+  
+  <Expandable title="Product">
+    <ResponseField name="id" type="integer">
+      Product identifier
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Product title
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Product description
+    </ResponseField>
+    
+    <ResponseField name="price" type="float">
+      Product price
+    </ResponseField>
+    
+    <ResponseField name="stock" type="integer">
+      Available stock
+    </ResponseField>
+    
+    <ResponseField name="mediaSrc" type="array">
+      Array of image URLs
+    </ResponseField>
+    
+    <ResponseField name="calification" type="float">
+      Average rating
+    </ResponseField>
+    
+    <ResponseField name="discount" type="float">
+      Discount percentage
+    </ResponseField>
+    
+    <ResponseField name="priceUnit" type="float">
+      Unit price
+    </ResponseField>
+    
+    <ResponseField name="productCode" type="integer">
+      Product code
+    </ResponseField>
+    
+    <ResponseField name="active" type="boolean">
+      Active status
+    </ResponseField>
+    
+    <ResponseField name="isNew" type="boolean">
+      New product flag
+    </ResponseField>
+    
+    <ResponseField name="isBestseller" type="boolean">
+      Bestseller flag
+    </ResponseField>
+    
+    <ResponseField name="isFeatured" type="boolean">
+      Featured flag
+    </ResponseField>
+    
+    <ResponseField name="hero" type="boolean">
+      Hero item flag
+    </ResponseField>
+    
+    <ResponseField name="brand" type="object">
+      Brand object (full entity)
+    </ResponseField>
+    
+    <ResponseField name="categories" type="array">
+      Array of category objects (full entities)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.example.com/products/search?query=headphones" \
+  -H "Content-Type: application/json"
+```
+
+```javascript JavaScript
+const query = 'headphones';
+const response = await fetch(`https://api.example.com/products/search?query=${encodeURIComponent(query)}`, {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+const products = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.example.com/products/search',
+    params={'query': 'headphones'}
+)
+
+products = response.json()
+```
+</CodeGroup>
+
+## Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "title": "Wireless Headphones",
+    "description": "Premium noise-cancelling wireless headphones",
+    "price": 199.99,
+    "stock": 50,
+    "mediaSrc": ["https://example.com/images/headphones1.jpg"],
+    "calification": 4.5,
+    "discount": 10.0,
+    "priceUnit": 199.99,
+    "productCode": 1001,
+    "active": true,
+    "isNew": true,
+    "isBestseller": true,
+    "isFeatured": false,
+    "hero": false,
+    "brand": {
+      "id": 1,
+      "name": "AudioTech",
+      "brandCode": 1,
+      "active": true
+    },
+    "categories": [
+      {
+        "id": 1,
+        "name": "Electronics",
+        "categoryCode": 100,
+        "active": true
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Gaming Headphones RGB",
+    "description": "Professional gaming headphones with surround sound",
+    "price": 149.99,
+    "stock": 30,
+    "mediaSrc": ["https://example.com/images/gaming-headphones.jpg"],
+    "calification": 4.7,
+    "discount": 5.0,
+    "priceUnit": 149.99,
+    "productCode": 1003,
+    "active": true,
+    "isNew": false,
+    "isBestseller": true,
+    "isFeatured": true,
+    "hero": false,
+    "brand": {
+      "id": 2,
+      "name": "GamePro",
+      "brandCode": 2,
+      "active": true
+    },
+    "categories": [
+      {
+        "id": 1,
+        "name": "Electronics",
+        "categoryCode": 100,
+        "active": true
+      },
+      {
+        "id": 6,
+        "name": "Gaming",
+        "categoryCode": 106,
+        "active": true
+      }
+    ]
+  }
+]
+```
+
+## Search Behavior
+
+### Case Insensitivity
+All searches are case-insensitive (ProductSearchController.java:45)
+```java
+String lowerQuery = query.toLowerCase();
+```
+
+### Synonym Expansion
+The search supports synonym expansion using a configured synonyms.json file:
+- If the query matches a key in the synonyms map, related types are included (ProductSearchController.java:47-49)
+- Example: searching for "laptop" might also match "notebook" or "computer"
+- Synonyms are loaded from `src/main/resources/synonyms.json` (ProductSearchController.java:35)
+
+### Matching Logic
+Products match if (ProductSearchController.java:52-55):
+- Product has `active=true`
+- Product has a non-null title
+- Title contains the search query OR any synonym terms
+
+### Full-Text Search
+The search uses substring matching:
+```java
+p.getTitle().toLowerCase().contains(lowerQuery)
+```
+
+## Implementation Notes
+
+- Returns full Product entities, not DTOs (ProductSearchController.java:44)
+- No pagination - returns all matching results
+- Synonyms file is optional - if not found, only direct matches are returned
+- Products with null titles are excluded from results
+- Search is performed in-memory after fetching all products
+
+## Synonym Configuration
+
+Synonyms are configured in `src/main/resources/synonyms.json`:
+```json
+{
+  "laptop": ["notebook", "computer", "pc"],
+  "phone": ["smartphone", "mobile", "cellphone"],
+  "headphones": ["earphones", "headset", "earbuds"]
+}
+```
+
+When a user searches for a key term, the system also searches for products containing any of the synonym values in their titles.

@@ -1,0 +1,460 @@
+---
+title: 'Data Model & Entities'
+description: 'Complete database schema and entity relationships'
+---
+
+## Database Schema
+
+The E-commerce Backend uses a relational database model with JPA entities mapped to database tables. All entities are located in the `ar.edu.uade.ecommerce.Entity` package.
+
+## Core Entities
+
+### User Entity
+
+The central entity representing system users:
+
+```java
+@Entity
+@Table(name = "users")
+public class User {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    private String name;
+    private String lastname;
+    
+    @Column(unique = true)
+    private String email;
+    
+    @JsonIgnore
+    private String password;
+    
+    private String role;
+    private boolean accountActive = false;
+    private Boolean sessionActive = false;
+    
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<Address> addresses;
+    
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<Cart> carts;
+    
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<Purchase> purchases;
+    
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<Token> tokens;
+    
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<FavouriteProducts> favouriteProducts;
+}
+```
+
+**Key Fields:**
+- `id` - Primary key (auto-generated)
+- `email` - Unique identifier for login
+- `role` - User role (for authorization)
+- `accountActive` - Account verification status
+- `sessionActive` - Current session state
+
+### Product Entity
+
+Represents items in the catalog:
+
+```java
+@Entity
+public class Product {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    @ManyToOne
+    @JoinColumn(name = "brand_id")
+    private Brand brand;
+    
+    private String title;
+    private String description;
+    private Float price;
+    private Float priceUnit;
+    private Float discount;
+    private Integer stock;
+    private Integer productCode;  // Stable cross-service identifier
+    private Float calification;
+    
+    @ElementCollection
+    @CollectionTable(name = "product_media_src")
+    @Column(name = "media_src")
+    private List<String> mediaSrc;
+    
+    private boolean isNew;
+    private boolean isBestseller;
+    private boolean isFeatured;
+    private boolean hero;
+    private Boolean active;
+    
+    @ManyToMany
+    @JoinTable(
+        name = "product_category",
+        joinColumns = @JoinColumn(name = "product_id"),
+        inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    private Set<Category> categories;
+}
+```
+
+**Key Fields:**
+- `productCode` - Stable identifier used across microservices
+- `active` - Product availability flag
+- `mediaSrc` - List of image URLs
+- `calification` - Average product rating
+
+### Cart Entity
+
+Represents a user's shopping cart:
+
+```java
+@Entity
+@Table(name = "carts")
+public class Cart {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
+    @Column(name = "final_price")
+    private Float finalPrice;
+    
+    @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, 
+               orphanRemoval = true)
+    private List<CartItem> items = new ArrayList<>();
+}
+```
+
+### CartItem Entity
+
+Items within a shopping cart:
+
+```java
+@Entity
+@Table(name = "cart_items")
+public class CartItem {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    @ManyToOne
+    @JoinColumn(name = "cart_id", nullable = false)
+    private Cart cart;
+    
+    @ManyToOne
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
+    
+    private Integer quantity;
+}
+```
+
+### Purchase Entity
+
+Completed orders:
+
+```java
+@Entity
+@Table(name = "purchases")
+public class Purchase {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cart_id", nullable = false)
+    private Cart cart;
+    
+    private LocalDateTime date;
+    private LocalDateTime reservationTime;
+    private String direction;
+    
+    @Enumerated(EnumType.STRING)
+    private Status status;
+    
+    public enum Status {
+        CONFIRMED,
+        PENDING,
+        CANCELLED
+    }
+}
+```
+
+### Review Entity
+
+Product reviews and ratings:
+
+```java
+@Entity
+public class Review {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne
+    @JoinColumn(name = "product_id")
+    private Product product;
+    
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+    
+    @Column(nullable = false)
+    private float calification;
+    
+    @Column(length = 1000)
+    private String description;
+}
+```
+
+## Catalog Entities
+
+### Brand Entity
+
+```java
+@Entity
+@Table(indexes = {
+    @Index(name = "idx_brand_code", columnList = "brand_code", 
+           unique = true)
+})
+public class Brand {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    private String name;
+    
+    @Column(nullable = false)
+    private boolean active;
+    
+    @Column(name = "brand_code", unique = true)
+    private Integer brandCode;  // Cross-service identifier
+    
+    @OneToMany(mappedBy = "brand")
+    private List<Product> products;
+}
+```
+
+### Category Entity
+
+```java
+@Entity
+@Table(indexes = {
+    @Index(name = "idx_category_code", columnList = "category_code", 
+           unique = true)
+})
+public class Category {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    private String name;
+    
+    @Column(nullable = false)
+    private boolean active;
+    
+    @Column(name = "category_code", unique = true)
+    private Integer categoryCode;  // Cross-service identifier
+}
+```
+
+## Supporting Entities
+
+### Address Entity
+
+User addresses for delivery:
+
+```java
+@Entity
+@Table(name = "addresses")
+public class Address {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    private String description;
+    
+    @ManyToOne
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+}
+```
+
+### ProductView Entity
+
+Tracks user product views:
+
+```java
+@Entity
+@Table(name = "product_views")
+public class ProductView {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+    
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id", nullable = false)
+    private Product product;
+    
+    @Column(nullable = false)
+    private LocalDateTime viewedAt;
+}
+```
+
+### Event Entity
+
+Local event storage:
+
+```java
+@Entity
+public class Event {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+    
+    private String type;
+    
+    @Lob
+    private String payload;
+    
+    private LocalDateTime timestamp;
+}
+```
+
+### ConsumedEventLog Entity
+
+Tracks processed Kafka events:
+
+```java
+@Entity
+public class ConsumedEventLog {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(unique = true, nullable = false)
+    private String eventId;
+    
+    private String eventType;
+    private String originModule;
+    private String timestampRaw;
+    private String topic;
+    private Integer partitionId;
+    private Long offsetValue;
+    
+    @Lob
+    private String payloadJson;
+    
+    @Enumerated(EnumType.STRING)
+    private ConsumedEventStatus status;
+    
+    private Integer attempts;
+    private String lastError;
+    private Boolean ackSent;
+    private Integer ackAttempts;
+    private OffsetDateTime ackLastAt;
+    private String ackLastError;
+    private OffsetDateTime updatedAt;
+}
+```
+
+## Entity Relationships
+
+<Accordion title="User Relationships">
+  A User entity has the following relationships:
+  - **One-to-Many** with Address (user addresses)
+  - **One-to-Many** with Cart (shopping carts)
+  - **One-to-Many** with Purchase (order history)
+  - **One-to-Many** with Token (authentication tokens)
+  - **One-to-Many** with FavouriteProducts (wishlists)
+  - **One-to-Many** with Review (product reviews)
+  - **One-to-Many** with ProductView (browsing history)
+</Accordion>
+
+<Accordion title="Product Relationships">
+  A Product entity has the following relationships:
+  - **Many-to-One** with Brand (product manufacturer)
+  - **Many-to-Many** with Category (product categorization)
+  - **One-to-Many** with Review (product ratings)
+  - **One-to-Many** with CartItem (in shopping carts)
+  - **One-to-Many** with FavouriteProducts (in wishlists)
+  - **One-to-Many** with ProductView (view tracking)
+</Accordion>
+
+<Accordion title="Cart Relationships">
+  A Cart entity has the following relationships:
+  - **Many-to-One** with User (cart owner)
+  - **One-to-Many** with CartItem (items in cart)
+  - **One-to-Many** with Purchase (converted to orders)
+</Accordion>
+
+<Accordion title="Purchase Relationships">
+  A Purchase entity has the following relationships:
+  - **Many-to-One** with User (purchaser)
+  - **Many-to-One** with Cart (order contents)
+</Accordion>
+
+## Cascade Operations
+
+<Note>
+Most parent-child relationships use `CascadeType.ALL` with `orphanRemoval = true`, ensuring child entities are automatically managed with their parents.
+</Note>
+
+**Examples:**
+- Deleting a User cascades to all their addresses, carts, purchases, and tokens
+- Deleting a Cart cascades to all CartItems within it
+- Removing a CartItem from a Cart's collection deletes the CartItem entity
+
+## Database Indexes
+
+Key indexes for performance:
+
+```java
+// Brand entity
+@Index(name = "idx_brand_code", columnList = "brand_code", unique = true)
+
+// Category entity
+@Index(name = "idx_category_code", columnList = "category_code", unique = true)
+```
+
+These support efficient cross-service lookups using stable code identifiers.
+
+## Cross-Service Identifiers
+
+<Note>
+Entities like Product, Brand, and Category use stable "code" fields (`productCode`, `brandCode`, `categoryCode`) as identifiers across microservices, separate from internal database IDs.
+</Note>
+
+This design allows:
+- Independent ID generation per service
+- Consistent references across service boundaries
+- Easier data synchronization between services
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="sitemap" href="/architecture/overview">
+    Learn about system architecture and layers
+  </Card>
+  
+  <Card title="Security" icon="shield-halved" href="/architecture/security">
+    Understand authentication and authorization
+  </Card>
+</CardGroup>

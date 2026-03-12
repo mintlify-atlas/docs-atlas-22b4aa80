@@ -1,0 +1,288 @@
+---
+title: 'Keycloak Configuration'
+description: 'Keycloak authentication and authorization setup for the E-commerce API'
+icon: 'lock'
+---
+
+The E-commerce Backend API uses Keycloak for authentication and authorization with OAuth 2.0 Client Credentials flow.
+
+## Overview
+
+Keycloak provides:
+- Centralized authentication and authorization
+- OAuth 2.0 and OpenID Connect support
+- Service account authentication via Client Credentials grant
+- JWT token generation and validation
+
+## Keycloak Server Setup
+
+### Local Development with Docker
+
+The project includes a Docker Compose configuration for running Keycloak locally:
+
+<CodeGroup>
+```yaml docker-compose.yml
+version: '3.8'
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.4
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_IMPORT: /opt/keycloak/data/import/realm-export.json
+    command: ["start-dev"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/ecommerce"]
+      interval: 10s
+      retries: 10
+    restart: unless-stopped
+```
+</CodeGroup>
+
+<Note>
+  The Docker setup automatically imports the realm configuration from `realm-export.json` on startup.
+</Note>
+
+Start Keycloak:
+
+```bash
+docker-compose up -d keycloak
+```
+
+Access the admin console at `http://localhost:8080`:
+- Username: `admin`
+- Password: `admin`
+
+## Realm Configuration
+
+The application uses a realm named `ecommerce` with pre-configured client credentials. The realm is defined in `docker/keycloak/realm-export.json`:
+
+<CodeGroup>
+```json realm-export.json
+{
+  "realm": "ecommerce",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "ecommerce-module",
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "ecommerce-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "redirectUris": ["*"],
+      "webOrigins": ["+"],
+      "attributes": {}
+    }
+  ],
+  "users": []
+}
+```
+</CodeGroup>
+
+### Client Configuration Details
+
+<ParamField path="clientId" type="string" default="ecommerce-module">
+  The client identifier used for authentication.
+</ParamField>
+
+<ParamField path="secret" type="string" default="ecommerce-secret">
+  The client secret for authentication (used in development only).
+  
+  <Warning>
+    In production, generate a strong random secret and store it securely.
+  </Warning>
+</ParamField>
+
+<ParamField path="serviceAccountsEnabled" type="boolean" default="true">
+  Enables the Client Credentials grant type for machine-to-machine authentication.
+</ParamField>
+
+<ParamField path="standardFlowEnabled" type="boolean" default="false">
+  Standard (authorization code) flow is disabled as this is a service account client.
+</ParamField>
+
+<ParamField path="directAccessGrantsEnabled" type="boolean" default="false">
+  Direct access (password) grants are disabled for security.
+</ParamField>
+
+<ParamField path="publicClient" type="boolean" default="false">
+  This is a confidential client requiring a secret, not a public client.
+</ParamField>
+
+## Application Configuration
+
+The application is configured to connect to Keycloak via `application.properties`:
+
+<CodeGroup>
+```properties Keycloak Settings
+# Keycloak token endpoint
+keycloak.token.url=${KEYCLOAK_TOKEN_URL:http://localhost:8080/realms/ecommerce/protocol/openid-connect/token}
+
+# Client credentials
+keycloak.client-id=ventas-app
+keycloak.client-secret=${KEYCLOAK_CLIENT_SECRET}
+
+# Disable automatic token refresh
+keycloak.refresh.enabled=false
+```
+</CodeGroup>
+
+### Environment Variables
+
+<ParamField path="KEYCLOAK_TOKEN_URL" type="string" default="http://localhost:8080/realms/ecommerce/protocol/openid-connect/token">
+  The OpenID Connect token endpoint URL for the `ecommerce` realm.
+  
+  Format: `{keycloak-base-url}/realms/{realm-name}/protocol/openid-connect/token`
+</ParamField>
+
+<ParamField path="KEYCLOAK_CLIENT_SECRET" type="string" required>
+  The client secret for authentication.
+  
+  For local development with the provided realm: `ecommerce-secret`
+</ParamField>
+
+### Token Refresh
+
+<ParamField path="keycloak.refresh.enabled" type="boolean" default="false">
+  Controls whether the application automatically refreshes tokens.
+  
+  Set to `false` to prevent constant retry attempts if Keycloak is unavailable.
+</ParamField>
+
+<Note>
+  The application uses the client ID `ventas-app` in the code, which should match or be mapped to the `ecommerce-module` client in Keycloak.
+</Note>
+
+## JWT Token Configuration
+
+The application also uses JWT tokens for internal authentication:
+
+<CodeGroup>
+```properties JWT Settings
+# JWT secret for signing tokens
+jwt.secret=${JWT_SECRET}
+```
+</CodeGroup>
+
+<ParamField path="JWT_SECRET" type="string" required>
+  Secret key used for signing and validating JWT tokens.
+  
+  <Warning>
+    Use a strong, random string (at least 256 bits). Never commit this to version control.
+  </Warning>
+</ParamField>
+
+## Obtaining an Access Token
+
+To get an access token using the Client Credentials flow:
+
+<CodeGroup>
+```bash cURL
+curl -X POST http://localhost:8080/realms/ecommerce/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=ecommerce-module" \
+  -d "client_secret=ecommerce-secret"
+```
+
+```bash HTTPie
+http -f POST http://localhost:8080/realms/ecommerce/protocol/openid-connect/token \
+  grant_type=client_credentials \
+  client_id=ecommerce-module \
+  client_secret=ecommerce-secret
+```
+
+```python Python
+import requests
+
+url = "http://localhost:8080/realms/ecommerce/protocol/openid-connect/token"
+data = {
+    "grant_type": "client_credentials",
+    "client_id": "ecommerce-module",
+    "client_secret": "ecommerce-secret"
+}
+
+response = requests.post(url, data=data)
+token = response.json()["access_token"]
+```
+</CodeGroup>
+
+The response will contain:
+
+```json
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_in": 300,
+  "token_type": "Bearer",
+  "not-before-policy": 0,
+  "scope": "profile email"
+}
+```
+
+## Production Setup
+
+### Securing Keycloak
+
+For production deployments:
+
+1. **Use HTTPS**: Configure Keycloak with TLS certificates
+2. **Strong Secrets**: Generate cryptographically secure client secrets
+3. **Network Security**: Use firewalls and VPCs to restrict access
+4. **Backup Realm**: Export and backup your realm configuration
+5. **Monitor**: Enable logging and monitoring for authentication attempts
+
+### Generating Production Client Secret
+
+In the Keycloak admin console:
+
+1. Navigate to **Clients** → **ecommerce-module**
+2. Go to the **Credentials** tab
+3. Click **Regenerate Secret**
+4. Copy the new secret and update your `KEYCLOAK_CLIENT_SECRET` environment variable
+
+<Warning>
+  Regenerating the secret will invalidate the old one. Update all services using the client before regenerating.
+</Warning>
+
+### High Availability
+
+For production environments, consider:
+- Running multiple Keycloak instances behind a load balancer
+- Using a shared database (PostgreSQL) for session data
+- Configuring realm caching appropriately
+- Setting up database replication
+
+## Troubleshooting
+
+### Cannot Connect to Keycloak
+
+- Verify Keycloak is running: `curl http://localhost:8080/realms/ecommerce`
+- Check the `KEYCLOAK_TOKEN_URL` environment variable
+- Review Docker logs: `docker-compose logs keycloak`
+
+### Invalid Client Credentials
+
+- Verify the client ID matches: `ventas-app` or `ecommerce-module`
+- Check that `KEYCLOAK_CLIENT_SECRET` matches the realm configuration
+- Ensure the client is enabled in Keycloak admin console
+
+### Token Validation Failures
+
+- Verify the JWT secret is correctly set
+- Check token expiration times
+- Ensure clock synchronization between services
+- Review token claims and audience settings
+
+## Additional Resources
+
+- [Keycloak Documentation](https://www.keycloak.org/documentation)
+- [OAuth 2.0 Client Credentials Grant](https://oauth.net/2/grant-types/client-credentials/)
+- [OpenID Connect Specification](https://openid.net/connect/)

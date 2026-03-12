@@ -1,0 +1,99 @@
+---
+title: 'Logout'
+api: 'POST /auth/logout'
+description: 'End the current user session'
+---
+
+## Authentication
+
+This endpoint requires authentication via Bearer token in the Authorization header.
+
+## Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token in the format: `Bearer {token}`
+</ParamField>
+
+## Response
+
+A success message string indicating the session was closed:
+
+```
+"Sesión cerrada correctamente"
+```
+
+## Response Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Logout successful |
+| 400 | Bad request - invalid or missing Authorization header |
+| 401 | Unauthorized - invalid token |
+| 404 | User not found |
+
+## How It Works
+
+The logout endpoint:
+
+1. Validates the Authorization header format
+2. Extracts the bearer token
+3. Retrieves the user's email from the token
+4. Finds the user by email
+5. Sets `sessionActive` to `false` for the user
+6. Saves the updated user state
+
+<Warning>
+  The Authorization header must be in the correct format: `Bearer {token}`. Headers without the "Bearer " prefix will be rejected with a 400 error.
+</Warning>
+
+<Note>
+  This endpoint marks the session as inactive on the server side. Clients should also remove the stored token locally after logout.
+</Note>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.example.com/auth/logout \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+```java Java
+@PostMapping("/logout")
+public ResponseEntity<String> logout(@RequestHeader("Authorization") String authHeader) {
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Cabecera Authorization inválida");
+    }
+    String token = authHeader.replace("Bearer ", "");
+    String email = authService.getEmailFromToken(token);
+    if (email == null) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Token inválido");
+    }
+    User user = authService.getUserByEmail(email);
+    if (user == null) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+    }
+    user.setSessionActive(false);
+    authService.saveUser(user);
+    return ResponseEntity.ok("Sesión cerrada correctamente");
+}
+```
+
+```bash Response (Success - 200)
+Sesión cerrada correctamente
+```
+
+```bash Response (Invalid Header - 400)
+Cabecera Authorization inválida
+```
+
+```bash Response (Invalid Token - 401)
+Token inválido
+```
+
+```bash Response (User Not Found - 404)
+Usuario no encontrado
+```
+
+</CodeGroup>

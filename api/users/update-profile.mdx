@@ -1,0 +1,135 @@
+---
+title: "Update User Profile"
+api: "PATCH /user/me"
+description: "Update the authenticated user's profile information"
+---
+
+## Authentication
+
+This endpoint requires authentication via Bearer token in the Authorization header.
+
+## Request
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication. Format: `Bearer <token>`
+</ParamField>
+
+<ParamField body="name" type="string">
+  User's first name to update
+</ParamField>
+
+<ParamField body="lastname" type="string">
+  User's last name to update
+</ParamField>
+
+<ParamField body="password" type="string">
+  New password for the user (must not be empty)
+</ParamField>
+
+## Response
+
+Returns the updated User object with the following fields:
+
+<ResponseField name="id" type="integer">
+  Unique identifier for the user
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Updated user's first name
+</ResponseField>
+
+<ResponseField name="lastname" type="string">
+  Updated user's last name
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  User's email address (unchanged)
+</ResponseField>
+
+<ResponseField name="role" type="string">
+  User's role in the system
+</ResponseField>
+
+<ResponseField name="accountActive" type="boolean">
+  Whether the user's account is active
+</ResponseField>
+
+<ResponseField name="sessionActive" type="boolean">
+  Whether the user has an active session
+</ResponseField>
+
+## Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X PATCH "https://api.example.com/user/me" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Jane",
+    "lastname": "Smith"
+  }'
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/user/me', {
+  method: 'PATCH',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Jane',
+    lastname: 'Smith'
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+```python Python
+import requests
+
+headers = {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+    'Content-Type': 'application/json'
+}
+
+data = {
+    'name': 'Jane',
+    'lastname': 'Smith'
+}
+
+response = requests.patch('https://api.example.com/user/me', headers=headers, json=data)
+user = response.json()
+```
+
+</CodeGroup>
+
+## Example Response
+
+```json
+{
+  "id": 1,
+  "name": "Jane",
+  "lastname": "Smith",
+  "email": "john.doe@example.com",
+  "role": "USER",
+  "accountActive": true,
+  "sessionActive": true,
+  "addresses": []
+}
+```
+
+## Notes
+
+- Only `name`, `lastname`, and `password` fields can be modified
+- Password must not be empty if provided
+- Other user fields (email, role, etc.) cannot be changed through this endpoint
+
+## Error Responses
+
+<ResponseField name="401" type="error">
+  Unauthorized - Invalid or missing token, or session is not active. Returns: `"Usuario no logueado"`
+</ResponseField>

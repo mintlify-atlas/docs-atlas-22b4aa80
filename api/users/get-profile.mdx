@@ -1,0 +1,114 @@
+---
+title: "Get User Profile"
+api: "GET /user/me"
+description: "Retrieve the authenticated user's profile information"
+---
+
+## Authentication
+
+This endpoint requires authentication via Bearer token in the Authorization header.
+
+## Request
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication. Format: `Bearer <token>`
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="integer">
+  Unique identifier for the user
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  User's first name
+</ResponseField>
+
+<ResponseField name="lastname" type="string">
+  User's last name
+</ResponseField>
+
+<ResponseField name="email" type="string">
+  User's email address
+</ResponseField>
+
+<ResponseField name="role" type="string">
+  User's role in the system
+</ResponseField>
+
+<ResponseField name="accountActive" type="boolean">
+  Whether the user's account is active
+</ResponseField>
+
+<ResponseField name="sessionActive" type="boolean">
+  Whether the user has an active session
+</ResponseField>
+
+<ResponseField name="addresses" type="array">
+  List of addresses associated with the user
+  <ResponseField name="id" type="integer">
+    Address unique identifier
+  </ResponseField>
+  <ResponseField name="description" type="string">
+    Address description or full address text
+  </ResponseField>
+</ResponseField>
+
+## Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.example.com/user/me" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/user/me', {
+  method: 'GET',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+  }
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+```python Python
+import requests
+
+headers = {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+}
+
+response = requests.get('https://api.example.com/user/me', headers=headers)
+user = response.json()
+```
+
+</CodeGroup>
+
+## Example Response
+
+```json
+{
+  "id": 1,
+  "name": "John",
+  "lastname": "Doe",
+  "email": "john.doe@example.com",
+  "role": "USER",
+  "accountActive": true,
+  "sessionActive": true,
+  "addresses": [
+    {
+      "id": 1,
+      "description": "123 Main St, City, Country"
+    }
+  ]
+}
+```
+
+## Error Responses
+
+<ResponseField name="401" type="error">
+  Unauthorized - Invalid or missing token, or session is not active
+</ResponseField>

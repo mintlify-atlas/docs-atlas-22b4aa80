@@ -1,0 +1,321 @@
+---
+title: 'Favorite Products'
+api: 'POST /products/favourite/{productCode}'
+description: 'Manage user favorite products'
+---
+
+## Add to Favorites
+
+### Endpoint
+
+```
+POST /products/favourite/{productCode}
+```
+
+### Description
+
+Adds a product to the authenticated user's favorites list. Emits an event to the Core system.
+
+### Authentication
+
+**Required**: JWT Bearer token
+
+### Path Parameters
+
+<ParamField path="productCode" type="integer" required>
+  The product code (external identifier) to add to favorites
+</ParamField>
+
+### Response
+
+Returns a plain text message indicating success or failure.
+
+<ResponseField name="message" type="string">
+  Success or error message:
+  - `"El producto con código {productCode} se agregó a favoritos correctamente."` - Success
+  - `"El producto ya está en favoritos."` - Product already favorited
+  - `"Usuario no encontrado."` - User not found
+  - `"Producto no encontrado."` - Product not found
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.example.com/products/favourite/1001" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/products/favourite/1001', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const message = await response.text();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.example.com/products/favourite/1001',
+    headers={'Authorization': 'Bearer YOUR_JWT_TOKEN'}
+)
+
+message = response.text
+```
+</CodeGroup>
+
+### Example Response
+
+```
+El producto con código 1001 se agregó a favoritos correctamente.
+```
+
+### Implementation Notes
+
+- Prevents duplicate favorites - returns message if already favorited (ProductController.java:376-378)
+- Stores both user, product entity, and productCode (ProductController.java:380-384)
+- Emits `addFavorite` event to Core system (ProductController.java:386-390)
+- User is identified from JWT token in Authentication header (ProductController.java:369-371)
+
+---
+
+## Remove from Favorites
+
+### Endpoint
+
+```
+DELETE /products/favourite/{productCode}
+```
+
+### Description
+
+Removes a product from the authenticated user's favorites list. Emits an event to the Core system.
+
+### Authentication
+
+**Required**: JWT Bearer token
+
+### Path Parameters
+
+<ParamField path="productCode" type="integer" required>
+  The product code (external identifier) to remove from favorites
+</ParamField>
+
+### Response
+
+Returns a plain text message indicating success or failure.
+
+<ResponseField name="message" type="string">
+  Success or error message:
+  - `"El producto con código {productCode} ya no es favorito."` - Success
+  - `"Usuario no encontrado."` - User not found
+  - `"Producto no encontrado."` - Product not found
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE "https://api.example.com/products/favourite/1001" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/products/favourite/1001', {
+  method: 'DELETE',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const message = await response.text();
+```
+
+```python Python
+import requests
+
+response = requests.delete(
+    'https://api.example.com/products/favourite/1001',
+    headers={'Authorization': 'Bearer YOUR_JWT_TOKEN'}
+)
+
+message = response.text
+```
+</CodeGroup>
+
+### Example Response
+
+```
+El producto con código 1001 ya no es favorito.
+```
+
+### Implementation Notes
+
+- Transactional operation to ensure data consistency (ProductController.java:395)
+- Deletes the favorite relationship if it exists (ProductController.java:405)
+- Emits `removeFavorite` event to Core system (ProductController.java:407-411)
+- Does not return error if favorite doesn't exist - returns success message
+
+---
+
+## Get User's Favorites
+
+### Endpoint
+
+```
+GET /products/user/favourite-products
+```
+
+### Description
+
+Retrieves all favorite products for the authenticated user. Only active products are returned.
+
+### Authentication
+
+**Required**: JWT Bearer token (in Authorization header)
+
+### Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication: `Bearer YOUR_JWT_TOKEN`
+</ParamField>
+
+### Response
+
+Returns an array of favorite product objects with simplified structure.
+
+<ResponseField name="array" type="array">
+  Array of favorite products
+  
+  <Expandable title="FavoriteProduct">
+    <ResponseField name="id" type="integer">
+      Product ID
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Product title
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Product description
+    </ResponseField>
+    
+    <ResponseField name="mediaSrc" type="array">
+      Array of product image URLs
+    </ResponseField>
+    
+    <ResponseField name="price" type="float">
+      Product price
+    </ResponseField>
+    
+    <ResponseField name="stock" type="integer">
+      Available stock
+    </ResponseField>
+    
+    <ResponseField name="productCode" type="integer">
+      Product code (external identifier)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.example.com/products/user/favourite-products" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/products/user/favourite-products', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const favorites = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.example.com/products/user/favourite-products',
+    headers={'Authorization': 'Bearer YOUR_JWT_TOKEN'}
+)
+
+favorites = response.json()
+```
+</CodeGroup>
+
+### Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "title": "Wireless Headphones",
+    "description": "Premium noise-cancelling wireless headphones",
+    "mediaSrc": [
+      "https://example.com/images/headphones1.jpg",
+      "https://example.com/images/headphones2.jpg"
+    ],
+    "price": 199.99,
+    "stock": 50,
+    "productCode": 1001
+  },
+  {
+    "id": 5,
+    "title": "Bluetooth Speaker",
+    "description": "Portable wireless speaker with 12-hour battery",
+    "mediaSrc": ["https://example.com/images/speaker1.jpg"],
+    "price": 79.99,
+    "stock": 100,
+    "productCode": 1005
+  }
+]
+```
+
+### Implementation Notes
+
+- User email is extracted from JWT token (ProductController.java:418-419)
+- Returns empty array if user not found (ProductController.java:421)
+- Filters out inactive products (`active=false`) (ProductController.java:423-426)
+- Returns simplified product data (not full ProductDTO) (ProductController.java:427-438)
+- Products with null values are excluded from results
+
+## Favorite Events
+
+Both add and remove operations emit events to the Core system:
+
+### Add Favorite Event
+```java
+ecommerceEventService.emitAddFavorite(
+    String.valueOf(productCode),
+    product.getId(),
+    product.getTitle()
+);
+```
+
+### Remove Favorite Event
+```java
+ecommerceEventService.emitRemoveFavorite(
+    String.valueOf(productCode),
+    product.getId(),
+    product.getTitle()
+);
+```
+
+Events are sent asynchronously and failures are logged without affecting the API response.

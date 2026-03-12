@@ -1,0 +1,211 @@
+---
+title: 'System Architecture Overview'
+description: 'Understanding the E-commerce Backend architecture, layers, and components'
+---
+
+## Architecture Overview
+
+The E-commerce Backend API follows a modern microservices architecture with event-driven communication patterns. The system is built using Spring Boot and implements a layered architecture with clear separation of concerns.
+
+## System Components
+
+<CardGroup cols={2}>
+  <Card title="REST API Layer" icon="globe">
+    Spring Boot controllers expose RESTful endpoints for client applications to interact with the e-commerce platform.
+  </Card>
+  
+  <Card title="Service Layer" icon="gears">
+    Business logic implementation that orchestrates operations between controllers and repositories.
+  </Card>
+  
+  <Card title="Repository Layer" icon="database">
+    Spring Data JPA repositories provide data access abstraction with automatic query generation.
+  </Card>
+  
+  <Card title="Messaging Layer" icon="arrows-rotate">
+    Event-driven communication using Kafka for inter-service communication and event processing.
+  </Card>
+</CardGroup>
+
+## Layered Architecture
+
+The application follows a three-tier architecture pattern:
+
+### 1. Controller Layer
+
+Located in `ar.edu.uade.ecommerce.Controllers`, this layer handles HTTP requests and responses:
+
+- **ProductController** - Product catalog management
+- **CartController** - Shopping cart operations
+- **PurchaseController** - Order processing
+- **UserController** - User account management
+- **AuthController** - Authentication endpoints
+- **ReviewController** - Product reviews
+- **CategoryController** & **BrandController** - Product categorization
+
+### 2. Service Layer
+
+Located in `ar.edu.uade.ecommerce.Service`, this layer implements business logic:
+
+- **ProductService** - Product inventory and stock management
+- **PurchaseService** - Order processing workflows
+- **AuthService** - Authentication and authorization logic
+- **UserService** - User profile management
+- **PasswordResetService** - Password recovery flows
+
+### 3. Repository Layer
+
+Located in `ar.edu.uade.ecommerce.Repository`, Spring Data JPA repositories:
+
+```java
+@Repository
+public interface ProductRepository extends JpaRepository<Product, Integer> {
+    Product findByProductCode(Integer productCode);
+}
+```
+
+All repositories extend `JpaRepository` providing standard CRUD operations plus custom query methods.
+
+## Event-Driven Architecture
+
+<Note>
+The system uses Apache Kafka for asynchronous event processing and microservice communication.
+</Note>
+
+### Event Processing
+
+Two main Kafka listeners handle events from different sources:
+
+#### 1. Ventas Events Listener
+
+Handles internal sales events (`ar.edu.uade.ecommerce.ventas.VentasEventsListener`):
+
+- Purchase confirmed events
+- Purchase cancelled events
+- Purchase pending events
+- Review created events
+- Favorite product add/remove events
+
+#### 2. Inventario Events Listener
+
+Handles inventory service events (`ar.edu.uade.ecommerce.ventas.InventarioEventsListener`):
+
+- Product stock updates
+- Inventory synchronization
+- Product availability changes
+
+### Event Publishing
+
+The `ECommerceEventService` publishes events to the messaging middleware:
+
+```java
+public void emitPurchaseConfirmed(Integer purchaseId, 
+                                  Map<String, Object> user, 
+                                  Map<String, Object> cart)
+
+public void emitReviewCreated(Integer productCode, 
+                              String message, 
+                              Float rateUpdated)
+
+public void emitAddFavorite(String productCode, 
+                            Long id, 
+                            String nombre)
+```
+
+### Event Idempotency
+
+The system ensures idempotent event processing:
+
+- **EventIdempotencyService** - Tracks processed event IDs
+- **ConsumedEventLog** - Database table storing event processing history
+- Prevents duplicate event processing across service restarts
+
+## Microservices Communication
+
+Services communicate through:
+
+### 1. Kafka Topics
+
+- `ventas.events` - Sales and purchase events (configurable)
+- `inventario` - Inventory management events (configurable)
+
+### 2. REST API (Core API Client)
+
+The `CoreApiClient` sends events to the middleware/core service:
+
+```java
+public void sendEvent(CoreEvent event)
+```
+
+### 3. ACK Mechanism
+
+The `CoreAckClient` sends acknowledgments back to the event source:
+
+```java
+public boolean sendAck(String eventId, String consumer)
+```
+
+## Configuration
+
+Key configuration properties:
+
+```properties
+# Kafka Configuration
+ventas.kafka.listen-ventas=true
+ventas.kafka.topic=ventas.events
+inventario.kafka.listen-inventario=true
+inventario.kafka.topic=inventario
+inventario.kafka.group-id=inventario-ms
+inventario.kafka.concurrency=1
+
+# Origin Module Name
+messaging.origin-module=${keycloak.client-id:Ecommerce}
+```
+
+## Monitoring and Health
+
+The system includes health monitoring components:
+
+- **VentasConsumerMonitorService** - Tracks consumer health and statistics
+- **KafkaConnectivityProbe** - Monitors Kafka connection status
+- Health endpoints for monitoring service status
+
+## Technology Stack
+
+<CardGroup cols={3}>
+  <Card title="Spring Boot" icon="leaf">
+    Core application framework
+  </Card>
+  
+  <Card title="Apache Kafka" icon="arrow-progress">
+    Event streaming platform
+  </Card>
+  
+  <Card title="Spring Data JPA" icon="layer-group">
+    Data persistence layer
+  </Card>
+  
+  <Card title="Spring Security" icon="shield">
+    Authentication & authorization
+  </Card>
+  
+  <Card title="JWT" icon="key">
+    Token-based authentication
+  </Card>
+  
+  <Card title="PostgreSQL/H2" icon="database">
+    Relational database
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Model" icon="diagram-project" href="/architecture/data-model">
+    Explore entity relationships and database schema
+  </Card>
+  
+  <Card title="Security" icon="lock" href="/architecture/security">
+    Learn about authentication and authorization
+  </Card>
+</CardGroup>

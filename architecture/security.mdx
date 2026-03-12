@@ -1,0 +1,519 @@
+---
+title: 'Security Architecture'
+description: 'Authentication, authorization, and security configuration'
+---
+
+## Security Overview
+
+The E-commerce Backend implements a comprehensive security layer using Spring Security with JWT token-based authentication. The security architecture is located in the `ar.edu.uade.ecommerce.Security` package.
+
+## Authentication Flow
+
+### JWT-Based Authentication
+
+The system uses JSON Web Tokens (JWT) for stateless authentication:
+
+1. **User Login** - Client sends credentials to `/auth/login`
+2. **Token Generation** - Server validates credentials and generates JWT
+3. **Token Storage** - Client stores token (typically in localStorage)
+4. **Authenticated Requests** - Client includes token in `Authorization` header
+5. **Token Validation** - Server validates token on each request
+
+```
+Client Request:
+GET /cart/items
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9...
+
+Server Response:
+200 OK with cart data
+```
+
+## Security Configuration
+
+### SecurityConfig
+
+The main security configuration class:
+
+```java
+@Configuration
+public class SecurityConfig {
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    
+    @Autowired
+    private UserDetailsService userDetailsService;
+    
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) 
+            throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.sameOrigin()))
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/h2-console/**").permitAll()
+                .requestMatchers("/purchase/**", 
+                                 "/cart/**", 
+                                 "/cart-items/**", 
+                                 "/user/**").authenticated()
+                .anyRequest().permitAll()
+            );
+        
+        http.addFilterBefore(jwtAuthenticationFilter, 
+                            UsernamePasswordAuthenticationFilter.class);
+        
+        return http.build();
+    }
+    
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+    
+    @Bean
+    public AuthenticationManager authenticationManager(HttpSecurity http) 
+            throws Exception {
+        AuthenticationManagerBuilder builder = 
+            http.getSharedObject(AuthenticationManagerBuilder.class);
+        builder.userDetailsService(userDetailsService)
+               .passwordEncoder(passwordEncoder());
+        return builder.build();
+    }
+}
+```
+
+**Key Configuration:**
+- **CSRF Disabled** - Not needed for stateless JWT authentication
+- **Stateless Sessions** - No server-side session storage
+- **Protected Endpoints** - `/purchase/**`, `/cart/**`, `/cart-items/**`, `/user/**` require authentication
+- **Public Endpoints** - All other endpoints are publicly accessible
+
+## JWT Implementation
+
+### JwtUtil
+
+Handles JWT token operations:
+
+```java
+@Component
+public class JwtUtil {
+    @Value("${jwt.secret:}")
+    private String secret;
+    
+    private Key signingKey;
+    private boolean enabled = false;
+    private final long EXPIRATION_TIME = 7200000; // 2 hours
+    
+    @PostConstruct
+    public void init() {
+        if (secret != null && !secret.isBlank()) {
+            signingKey = Keys.hmacShaKeyFor(
+                secret.getBytes(StandardCharsets.UTF_8));
+            enabled = true;
+        }
+    }
+    
+    public String generateToken(String username) {
+        if (!enabled) {
+            throw new IllegalStateException(
+                "JWT not configured (jwt.secret missing)");
+        }
+        return Jwts.builder()
+            .setSubject(username)
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(
+                System.currentTimeMillis() + EXPIRATION_TIME))
+            .signWith(signingKey, SignatureAlgorithm.HS512)
+            .compact();
+    }
+    
+    public String extractUsername(String token) {
+        try {
+            Claims claims = getClaims(token);
+            return claims != null ? claims.getSubject() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    public boolean validateToken(String token, String username) {
+        if (!enabled) return false;
+        String extractedUsername = extractUsername(token);
+        if (extractedUsername == null || username == null) {
+            return false;
+        }
+        return (extractedUsername.equals(username) && 
+                !isTokenExpired(token));
+    }
+    
+    private boolean isTokenExpired(String token) {
+        Claims claims = getClaims(token);
+        if (claims == null || claims.getExpiration() == null) {
+            return true;
+        }
+        return claims.getExpiration().before(new Date());
+    }
+}
+```
+
+**Token Details:**
+- **Algorithm**: HS512 (HMAC with SHA-512)
+- **Expiration**: 2 hours from issuance
+- **Subject**: User's email/username
+- **Secret**: Configured via `jwt.secret` property
+
+<Note>
+The JWT secret must be at least 64 bytes for HS512 algorithm. Configure it in `application.properties`:
+```properties
+jwt.secret=your-very-long-secret-key-at-least-512-bits
+```
+</Note>
+
+### JwtAuthenticationFilter
+
+Intercepts requests to validate JWT tokens:
+
+```java
+@Component
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+    @Autowired
+    private JwtUtil jwtUtil;
+    
+    @Autowired
+    private UserDetailsService userDetailsService;
+    
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain) 
+            throws ServletException, IOException {
+        
+        final String authHeader = request.getHeader("Authorization");
+        String username = null;
+        String jwt = null;
+        
+        // Extract token from Authorization header
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            jwt = authHeader.substring(7);
+            username = jwtUtil.extractUsername(jwt);
+        }
+        
+        // Validate and authenticate
+        if (username != null && 
+            SecurityContextHolder.getContext()
+                .getAuthentication() == null) {
+            try {
+                UserDetails userDetails = 
+                    userDetailsService.loadUserByUsername(username);
+                
+                if (jwtUtil.validateToken(jwt, 
+                                         userDetails.getUsername())) {
+                    UsernamePasswordAuthenticationToken authToken =
+                        new UsernamePasswordAuthenticationToken(
+                            userDetails, 
+                            null, 
+                            userDetails.getAuthorities());
+                    
+                    authToken.setDetails(
+                        new WebAuthenticationDetailsSource()
+                            .buildDetails(request));
+                    
+                    SecurityContextHolder.getContext()
+                        .setAuthentication(authToken);
+                }
+            } catch (UsernameNotFoundException e) {
+                // User not found, proceed without authentication
+            }
+        }
+        
+        filterChain.doFilter(request, response);
+    }
+}
+```
+
+**Filter Flow:**
+1. Extract `Authorization` header
+2. Parse Bearer token
+3. Extract username from token
+4. Load user details from database
+5. Validate token signature and expiration
+6. Set authentication in SecurityContext
+7. Continue filter chain
+
+## User Authentication
+
+### CustomUserDetailsService
+
+Loads user details for authentication:
+
+```java
+@Service
+public class CustomUserDetailsService implements UserDetailsService {
+    @Autowired
+    private UserRepository userRepository;
+    
+    @Override
+    public UserDetails loadUserByUsername(String username) 
+            throws UsernameNotFoundException {
+        
+        User user = userRepository.findByEmail(username);
+        
+        if (user == null) {
+            throw new UsernameNotFoundException(
+                "Usuario no encontrado: " + username);
+        }
+        
+        return org.springframework.security.core.userdetails.User
+            .withUsername(user.getEmail())
+            .password(user.getPassword())
+            .roles(user.getRole())
+            .build();
+    }
+}
+```
+
+**User Details:**
+- Uses email as username
+- Loads hashed password from database
+- Assigns roles for authorization
+
+## Password Security
+
+### BCrypt Password Encoding
+
+Passwords are hashed using BCrypt:
+
+```java
+@Bean
+public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+}
+```
+
+**Features:**
+- Strong adaptive hash algorithm
+- Automatic salt generation
+- Protection against rainbow table attacks
+- Configurable work factor
+
+### Password Storage
+
+In the User entity:
+
+```java
+@JsonIgnore
+@Column(name = "password")
+private String password;
+```
+
+- `@JsonIgnore` prevents password from being serialized in API responses
+- Stored as BCrypt hash, never plain text
+
+## Keycloak Integration
+
+### Backend Token Management
+
+The system integrates with Keycloak for service-to-service authentication:
+
+```java
+@Service
+public class BackendTokenManager {
+    private String cachedToken;
+    private long tokenExpiresAt;
+    
+    public String getToken() {
+        if (isTokenValid()) {
+            return cachedToken;
+        }
+        return refreshToken();
+    }
+    
+    private boolean isTokenValid() {
+        return cachedToken != null && 
+               System.currentTimeMillis() < tokenExpiresAt;
+    }
+}
+```
+
+### KeycloakClient
+
+Obtains tokens from Keycloak:
+
+```java
+@Service
+public class KeycloakClient {
+    @Value("${keycloak.token-uri:}")
+    private String tokenUri;
+    
+    @Value("${keycloak.client-id:}")
+    private String clientId;
+    
+    @Value("${keycloak.client-secret:}")
+    private String clientSecret;
+    
+    public KeycloakTokenResponse getToken() {
+        // POST to Keycloak token endpoint
+        // with client credentials
+    }
+}
+```
+
+**Configuration:**
+```properties
+keycloak.token-uri=https://keycloak.example.com/realms/ecommerce/protocol/openid-connect/token
+keycloak.client-id=ecommerce-app
+keycloak.client-secret=your-client-secret
+```
+
+### BearerTokenInterceptor
+
+Adds authentication tokens to outgoing HTTP requests:
+
+```java
+@Component
+public class BearerTokenInterceptor implements ClientHttpRequestInterceptor {
+    @Autowired
+    private BackendTokenManager tokenManager;
+    
+    @Override
+    public ClientHttpResponse intercept(
+            HttpRequest request,
+            byte[] body,
+            ClientHttpRequestExecution execution) throws IOException {
+        
+        String token = tokenManager.getToken();
+        if (token != null && !token.isBlank()) {
+            request.getHeaders().setBearerAuth(token);
+        }
+        
+        return execution.execute(request, body);
+    }
+}
+```
+
+## Authorization
+
+### Role-Based Access Control
+
+Users are assigned roles stored in the database:
+
+```java
+private String role;  // e.g., "USER", "ADMIN"
+```
+
+Roles are loaded by `CustomUserDetailsService` and used for authorization:
+
+```java
+.roles(user.getRole())
+```
+
+### Endpoint Protection
+
+Endpoints are protected in `SecurityConfig`:
+
+```java
+.authorizeHttpRequests(auth -> auth
+    // Protected endpoints
+    .requestMatchers("/purchase/**", 
+                     "/cart/**", 
+                     "/cart-items/**", 
+                     "/user/**")
+    .authenticated()
+    
+    // Public endpoints
+    .anyRequest().permitAll()
+)
+```
+
+<Accordion title="Protected Endpoints">
+  - `/purchase/**` - All purchase/order operations
+  - `/cart/**` - Shopping cart management
+  - `/cart-items/**` - Cart item operations
+  - `/user/**` - User profile management
+</Accordion>
+
+<Accordion title="Public Endpoints">
+  - `/products/**` - Product catalog (read-only)
+  - `/auth/**` - Authentication endpoints
+  - `/categories/**` - Category browsing
+  - `/brands/**` - Brand information
+  - `/h2-console/**` - Development database console
+</Accordion>
+
+## CORS Configuration
+
+Cross-Origin Resource Sharing is configured separately:
+
+```java
+@Configuration
+public class CorsConfig {
+    // CORS configuration for frontend access
+}
+```
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Token Expiration" icon="clock">
+    JWT tokens expire after 2 hours, requiring re-authentication for long sessions
+  </Card>
+  
+  <Card title="Stateless Design" icon="server">
+    No server-side session storage improves scalability
+  </Card>
+  
+  <Card title="Password Hashing" icon="hashtag">
+    BCrypt with automatic salting protects user passwords
+  </Card>
+  
+  <Card title="HTTPS Only" icon="lock">
+    Production deployments should use HTTPS to protect tokens in transit
+  </Card>
+</CardGroup>
+
+## Account Management
+
+### Account Activation
+
+New user accounts require activation:
+
+```java
+private boolean accountActive = false;
+```
+
+Inactive accounts cannot authenticate until verified.
+
+### Session Management
+
+Session state is tracked:
+
+```java
+private Boolean sessionActive = false;
+```
+
+This allows tracking active user sessions.
+
+## Security Headers
+
+```java
+.headers(headers -> headers
+    .frameOptions(frame -> frame.sameOrigin()))
+```
+
+- **X-Frame-Options: SAMEORIGIN** - Prevents clickjacking attacks
+- Allows H2 console to load in frames from same origin
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture Overview" icon="diagram-project" href="/architecture/overview">
+    Learn about the overall system architecture
+  </Card>
+  
+  <Card title="Data Model" icon="database" href="/architecture/data-model">
+    Explore entity relationships and schema
+  </Card>
+</CardGroup>

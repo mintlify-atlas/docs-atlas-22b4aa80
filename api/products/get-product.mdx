@@ -1,0 +1,265 @@
+---
+title: 'Get Product'
+api: 'GET /products/{id}'
+description: 'Retrieve a single product by ID with related products'
+---
+
+## Endpoint
+
+```
+GET /products/{id}
+```
+
+## Description
+
+Retrieves a single product by its unique identifier along with related products based on shared brand or categories. Only active products are returned.
+
+## Authentication
+
+No authentication required.
+
+## Path Parameters
+
+<ParamField path="id" type="long" required>
+  The unique identifier of the product to retrieve
+</ParamField>
+
+## Response
+
+Returns a ProductWithRelatedDTO object containing the main product and related products.
+
+<ResponseField name="product" type="object">
+  The main product details
+  
+  <Expandable title="ProductDTO">
+    <ResponseField name="id" type="long">
+      Unique product identifier
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Product name/title
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Detailed product description
+    </ResponseField>
+    
+    <ResponseField name="price" type="float">
+      Product price
+    </ResponseField>
+    
+    <ResponseField name="stock" type="integer">
+      Available stock quantity
+    </ResponseField>
+    
+    <ResponseField name="mediaSrc" type="array">
+      Array of product image URLs
+    </ResponseField>
+    
+    <ResponseField name="calification" type="float">
+      Average rating from reviews
+    </ResponseField>
+    
+    <ResponseField name="discount" type="float">
+      Discount percentage
+    </ResponseField>
+    
+    <ResponseField name="priceUnit" type="float">
+      Unit price
+    </ResponseField>
+    
+    <ResponseField name="productCode" type="integer">
+      External product code
+    </ResponseField>
+    
+    <ResponseField name="active" type="boolean">
+      Product active status
+    </ResponseField>
+    
+    <ResponseField name="isNew" type="boolean">
+      New arrival flag
+    </ResponseField>
+    
+    <ResponseField name="isBestseller" type="boolean">
+      Bestseller flag
+    </ResponseField>
+    
+    <ResponseField name="isFeatured" type="boolean">
+      Featured product flag
+    </ResponseField>
+    
+    <ResponseField name="hero" type="boolean">
+      Hero item flag
+    </ResponseField>
+    
+    <ResponseField name="brand" type="object">
+      Brand information
+      
+      <Expandable title="BrandDTO">
+        <ResponseField name="id" type="long">
+          Brand ID
+        </ResponseField>
+        <ResponseField name="name" type="string">
+          Brand name
+        </ResponseField>
+        <ResponseField name="active" type="boolean">
+          Brand status
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="categories" type="array">
+      Array of categories
+      
+      <Expandable title="CategoryDTO">
+        <ResponseField name="id" type="long">
+          Category ID
+        </ResponseField>
+        <ResponseField name="name" type="string">
+          Category name
+        </ResponseField>
+        <ResponseField name="active" type="boolean">
+          Category status
+        </ResponseField>
+        <ResponseField name="categoryCode" type="integer">
+          Category code
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="relatedProducts" type="array">
+  Array of related products (same brand or shared categories)
+  
+  Contains ProductDTO objects with the same structure as the main product
+</ResponseField>
+
+## Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.example.com/products/1" \
+  -H "Content-Type: application/json"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/products/1', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get('https://api.example.com/products/1')
+data = response.json()
+```
+</CodeGroup>
+
+## Example Response
+
+```json
+{
+  "product": {
+    "id": 1,
+    "title": "Wireless Headphones",
+    "description": "Premium noise-cancelling wireless headphones with 30-hour battery life",
+    "price": 199.99,
+    "stock": 50,
+    "mediaSrc": [
+      "https://example.com/images/headphones1.jpg",
+      "https://example.com/images/headphones2.jpg"
+    ],
+    "calification": 4.5,
+    "discount": 10.0,
+    "priceUnit": 199.99,
+    "productCode": 1001,
+    "active": true,
+    "isNew": true,
+    "isBestseller": true,
+    "isFeatured": false,
+    "hero": false,
+    "brand": {
+      "id": 1,
+      "name": "AudioTech",
+      "active": true
+    },
+    "categories": [
+      {
+        "id": 1,
+        "name": "Electronics",
+        "active": true,
+        "categoryCode": 100
+      },
+      {
+        "id": 5,
+        "name": "Audio",
+        "active": true,
+        "categoryCode": 105
+      }
+    ]
+  },
+  "relatedProducts": [
+    {
+      "id": 2,
+      "title": "Bluetooth Speaker",
+      "description": "Portable wireless speaker",
+      "price": 79.99,
+      "stock": 100,
+      "mediaSrc": ["https://example.com/images/speaker1.jpg"],
+      "calification": 4.2,
+      "discount": 0.0,
+      "priceUnit": 79.99,
+      "productCode": 1002,
+      "active": true,
+      "isNew": false,
+      "isBestseller": false,
+      "isFeatured": true,
+      "hero": false,
+      "brand": {
+        "id": 1,
+        "name": "AudioTech",
+        "active": true
+      },
+      "categories": [
+        {
+          "id": 5,
+          "name": "Audio",
+          "active": true,
+          "categoryCode": 105
+        }
+      ]
+    }
+  ]
+}
+```
+
+## Error Responses
+
+<ResponseField name="404" type="error">
+  Product not found or inactive
+  
+  ```json
+  {
+    "status": 404,
+    "error": "Not Found",
+    "message": "Producto no encontrado"
+  }
+  ```
+</ResponseField>
+
+## Implementation Notes
+
+- Product must have `active=true` to be returned (ProductController.java:290)
+- Related products are determined by:
+  - Same brand ID (ProductController.java:297)
+  - OR shared category IDs (ProductController.java:298)
+- Related products exclude the requested product itself (ProductController.java:296)
+- Only active related products are included (ProductController.java:295)
+- Related products are not paginated

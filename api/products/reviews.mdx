@@ -1,0 +1,442 @@
+---
+title: 'Product Reviews'
+api: 'POST /products/code/{productCode}/review'
+description: 'Add and retrieve product reviews'
+---
+
+## Add Review
+
+### Endpoint
+
+```
+POST /products/code/{productCode}/review
+```
+
+### Description
+
+Adds a review (rating and comment) for a product. Updates the product's average calification and emits an event to the Core system.
+
+### Authentication
+
+**Required**: JWT Bearer token
+
+Authenticated users can only submit one review per product.
+
+### Path Parameters
+
+<ParamField path="productCode" type="integer" required>
+  The product code (external identifier) of the product to review
+</ParamField>
+
+### Request Body
+
+<ParamField body="calification" type="float" required>
+  Rating value for the product (typically 1-5)
+</ParamField>
+
+<ParamField body="description" type="string">
+  Text review/comment for the product
+</ParamField>
+
+### Request Schema
+
+<Expandable title="ReviewRequest">
+  ```java
+  {
+    "calification": float,
+    "description": string
+  }
+  ```
+</Expandable>
+
+### Response
+
+<ResponseField name="productId" type="integer">
+  Product ID
+</ResponseField>
+
+<ResponseField name="productTitle" type="string">
+  Product title
+</ResponseField>
+
+<ResponseField name="promedio" type="float">
+  Updated average rating for the product (calculated from all reviews)
+</ResponseField>
+
+<ResponseField name="reviews" type="array">
+  Array of all reviews for this product
+  
+  <Expandable title="ReviewDTO">
+    <ResponseField name="id" type="long">
+      Review unique identifier
+    </ResponseField>
+    
+    <ResponseField name="calification" type="float">
+      Rating value
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Review text
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.example.com/products/code/1001/review" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -d '{
+    "calification": 4.5,
+    "description": "Great headphones! Excellent sound quality and comfortable to wear."
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/products/code/1001/review', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  },
+  body: JSON.stringify({
+    calification: 4.5,
+    description: 'Great headphones! Excellent sound quality and comfortable to wear.'
+  })
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.example.com/products/code/1001/review',
+    headers={
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer YOUR_JWT_TOKEN'
+    },
+    json={
+        'calification': 4.5,
+        'description': 'Great headphones! Excellent sound quality and comfortable to wear.'
+    }
+)
+
+data = response.json()
+```
+</CodeGroup>
+
+### Example Response
+
+```json
+{
+  "productId": 1,
+  "productTitle": "Wireless Headphones",
+  "promedio": 4.5,
+  "reviews": [
+    {
+      "id": 1,
+      "calification": 5.0,
+      "description": "Amazing product!"
+    },
+    {
+      "id": 2,
+      "calification": 4.5,
+      "description": "Great headphones! Excellent sound quality and comfortable to wear."
+    },
+    {
+      "id": 3,
+      "calification": 4.0,
+      "description": "Good value for money"
+    }
+  ]
+}
+```
+
+### Error Responses
+
+<ResponseField name="404" type="error">
+  Product not found
+  
+  ```json
+  {
+    "status": 404,
+    "error": "Not Found",
+    "message": "Producto no encontrado por productCode=1001"
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="409" type="error">
+  User has already reviewed this product
+  
+  ```json
+  {
+    "status": 409,
+    "error": "Conflict",
+    "message": "Ya has calificado/comentado este producto."
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="401" type="error">
+  User not authenticated
+  
+  ```json
+  {
+    "status": 401,
+    "error": "Unauthorized",
+    "message": "Usuario no autenticado"
+  }
+  ```
+</ResponseField>
+
+---
+
+## Get Product Reviews
+
+### Endpoint
+
+```
+GET /products/{id}/reviews
+```
+
+### Description
+
+Retrieves all reviews for a product along with the average rating.
+
+### Authentication
+
+No authentication required.
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  The product ID (internal identifier)
+</ParamField>
+
+### Response
+
+<ResponseField name="productId" type="integer">
+  Product ID
+</ResponseField>
+
+<ResponseField name="productTitle" type="string">
+  Product title
+</ResponseField>
+
+<ResponseField name="promedio" type="float">
+  Average rating calculated from all reviews (0.0 if no reviews)
+</ResponseField>
+
+<ResponseField name="reviews" type="array">
+  Array of all reviews
+  
+  <Expandable title="ReviewDTO">
+    <ResponseField name="id" type="long">
+      Review ID
+    </ResponseField>
+    <ResponseField name="calification" type="float">
+      Rating value
+    </ResponseField>
+    <ResponseField name="description" type="string">
+      Review text
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.example.com/products/1/reviews" \
+  -H "Content-Type: application/json"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/products/1/reviews', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+const data = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get('https://api.example.com/products/1/reviews')
+data = response.json()
+```
+</CodeGroup>
+
+### Example Response
+
+```json
+{
+  "productId": 1,
+  "productTitle": "Wireless Headphones",
+  "promedio": 4.5,
+  "reviews": [
+    {
+      "id": 1,
+      "calification": 5.0,
+      "description": "Amazing product!"
+    },
+    {
+      "id": 2,
+      "calification": 4.5,
+      "description": "Great headphones! Excellent sound quality."
+    },
+    {
+      "id": 3,
+      "calification": 4.0,
+      "description": "Good value for money"
+    }
+  ]
+}
+```
+
+### Error Responses
+
+<ResponseField name="404" type="error">
+  Product not found
+  
+  ```json
+  {
+    "status": 404,
+    "error": "Not Found",
+    "message": "Producto no encontrado"
+  }
+  ```
+</ResponseField>
+
+---
+
+## Get My Review
+
+### Endpoint
+
+```
+GET /products/code/{productCode}/review/me
+```
+
+### Description
+
+Retrieves the authenticated user's review for a specific product.
+
+### Authentication
+
+**Required**: JWT Bearer token
+
+### Path Parameters
+
+<ParamField path="productCode" type="integer" required>
+  The product code (external identifier)
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="long">
+  Review ID
+</ResponseField>
+
+<ResponseField name="calification" type="float">
+  Rating value
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Review text
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.example.com/products/code/1001/review/me" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/products/code/1001/review/me', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_JWT_TOKEN'
+  }
+});
+
+const review = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.example.com/products/code/1001/review/me',
+    headers={'Authorization': 'Bearer YOUR_JWT_TOKEN'}
+)
+
+review = response.json()
+```
+</CodeGroup>
+
+### Example Response
+
+```json
+{
+  "id": 2,
+  "calification": 4.5,
+  "description": "Great headphones! Excellent sound quality and comfortable to wear."
+}
+```
+
+### Error Responses
+
+<ResponseField name="404" type="error">
+  Product not found or user has not reviewed this product
+  
+  ```json
+  {
+    "status": 404,
+    "error": "Not Found",
+    "message": "No has calificado/comentado este producto."
+  }
+  ```
+</ResponseField>
+
+<ResponseField name="401" type="error">
+  User not authenticated
+  
+  ```json
+  {
+    "status": 401,
+    "error": "Unauthorized",
+    "message": "Usuario no autenticado"
+  }
+  ```
+</ResponseField>
+
+## Implementation Notes
+
+### Review Creation
+- Each user can only submit one review per product (ProductController.java:157-160)
+- Product's `calification` field is automatically updated with the new average (ProductController.java:171-172)
+- Review creation emits an event to the Core system via ECommerceEventService (ProductController.java:174-180)
+- Anonymous reviews are allowed - user is optional (ProductController.java:164)
+
+### Average Calculation
+The average rating (promedio) is calculated as:
+```java
+float promedio = (float) reviews.stream()
+    .mapToDouble(Review::getCalification)
+    .average()
+    .orElse(0.0);
+```
+Returns 0.0 if no reviews exist (ProductController.java:169, 210)

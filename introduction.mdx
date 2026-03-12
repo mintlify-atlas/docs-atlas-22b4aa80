@@ -1,0 +1,114 @@
+---
+title: "Introduction"
+description: "A Spring Boot e-commerce backend API with event-driven architecture, Keycloak authentication, and microservices integration via Kafka messaging"
+---
+
+## Welcome to E-commerce Backend API
+
+A modern, production-ready e-commerce backend built with Spring Boot 3.5 that provides comprehensive REST APIs for managing products, shopping carts, orders, and user authentication. The system leverages event-driven architecture with Kafka for seamless microservices integration.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="RESTful API" icon="globe" href="/api/auth/login">
+    Comprehensive REST endpoints for all e-commerce operations with JWT and Keycloak authentication
+  </Card>
+  <Card title="Event-Driven Architecture" icon="bolt" href="/events/overview">
+    Kafka-based messaging for real-time communication between microservices
+  </Card>
+  <Card title="Product Management" icon="box" href="/api/products/list-products">
+    Full product catalog with reviews, ratings, favorites, and advanced filtering
+  </Card>
+  <Card title="Secure Authentication" icon="shield" href="/architecture/security">
+    JWT tokens and Keycloak integration for robust authentication and authorization
+  </Card>
+</CardGroup>
+
+## Quick Links
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get the API running locally in minutes
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Complete setup instructions with Docker and Maven
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/auth/login">
+    Explore all available endpoints with examples
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration/environment">
+    Configure database, Keycloak, and Kafka settings
+  </Card>
+</CardGroup>
+
+## Technology Stack
+
+- **Spring Boot 3.5.4** - Modern Java framework
+- **Spring Security** - Authentication and authorization
+- **Spring Data JPA** - Database access with Hibernate
+- **MySQL** - Primary database
+- **Keycloak** - Identity and access management
+- **Apache Kafka** - Event streaming platform
+- **Docker** - Containerization support
+- **OpenAPI/Swagger** - API documentation
+
+## Architecture Overview
+
+The system follows a microservices architecture with event-driven communication:
+
+1. **REST API Layer** - Spring Boot controllers handle HTTP requests
+2. **Service Layer** - Business logic and transaction management
+3. **Data Layer** - JPA repositories and MySQL database
+4. **Event Layer** - Kafka producers and consumers for inter-service communication
+5. **Security Layer** - JWT validation and Keycloak integration
+
+<Note>
+This API is designed to work as part of a larger microservices ecosystem, communicating with inventory, core, and other services via Kafka events.
+</Note>
+
+## Core Capabilities
+
+### User Management
+- User registration with email verification
+- JWT-based authentication
+- Profile management with addresses
+- Password reset functionality
+
+### Product Catalog
+- Paginated product listings
+- Advanced filtering by brand, category, and price
+- Product reviews and ratings
+- Favorites management
+- Related products recommendations
+
+### Shopping Cart
+- Add, update, and remove items
+- Persistent cart storage
+- Real-time stock validation
+
+### Order Processing
+- Purchase creation and tracking
+- Order status management
+- Event-driven inventory updates
+- Purchase history
+
+## Get Started
+
+<Steps>
+  <Step title="Install Prerequisites">
+    Ensure you have Java 17, Maven, MySQL, and Docker installed
+  </Step>
+  <Step title="Clone and Configure">
+    Clone the repository and set up environment variables
+  </Step>
+  <Step title="Run Services">
+    Start Keycloak, Kafka, and the Spring Boot application
+  </Step>
+  <Step title="Test API">
+    Make your first API call to authenticate and fetch products
+  </Step>
+</Steps>
+
+<Card title="Ready to start?" icon="play" href="/quickstart">
+  Follow the quickstart guide to get your API running
+</Card>

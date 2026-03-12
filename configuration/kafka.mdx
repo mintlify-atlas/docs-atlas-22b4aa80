@@ -1,0 +1,462 @@
+---
+title: 'Kafka Configuration'
+description: 'Apache Kafka setup and configuration for event-driven architecture'
+icon: 'message-code'
+---
+
+The E-commerce Backend API uses Apache Kafka for asynchronous event-driven communication between microservices.
+
+## Overview
+
+The application consumes messages from two Kafka topics:
+- **ventas**: Sales events (listening disabled by default)
+- **inventario**: Inventory events (active consumer)
+
+Kafka is configured with SASL/SCRAM-SHA-512 authentication for secure communication.
+
+## Connection Configuration
+
+<ParamField path="spring.kafka.bootstrap-servers" type="string" default="localhost:9092">
+  Comma-separated list of Kafka broker addresses.
+  
+  Loaded from `KAFKA_BOOTSTRAP` environment variable.
+  
+  Example: `kafka-1.example.com:9092,kafka-2.example.com:9092`
+</ParamField>
+
+<CodeGroup>
+```properties Bootstrap Configuration
+spring.kafka.bootstrap-servers=${KAFKA_BOOTSTRAP:localhost:9092}
+```
+</CodeGroup>
+
+## SASL Authentication
+
+The application uses SASL_PLAINTEXT security protocol with SCRAM-SHA-512 mechanism for all Kafka operations.
+
+### Admin Client Authentication
+
+<CodeGroup>
+```properties Admin Configuration
+spring.kafka.admin.properties.security.protocol=SASL_PLAINTEXT
+spring.kafka.admin.properties.sasl.mechanism=SCRAM-SHA-512
+spring.kafka.admin.properties.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";
+```
+</CodeGroup>
+
+### Producer Authentication
+
+<CodeGroup>
+```properties Producer Configuration
+spring.kafka.producer.properties.security.protocol=SASL_PLAINTEXT
+spring.kafka.producer.properties.sasl.mechanism=SCRAM-SHA-512
+spring.kafka.producer.properties.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";
+```
+</CodeGroup>
+
+### Consumer Authentication
+
+<CodeGroup>
+```properties Consumer Configuration
+spring.kafka.consumer.properties.security.protocol=SASL_PLAINTEXT
+spring.kafka.consumer.properties.sasl.mechanism=SCRAM-SHA-512
+spring.kafka.consumer.properties.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";
+```
+</CodeGroup>
+
+### Global Kafka Properties
+
+<CodeGroup>
+```properties Global Configuration
+spring.kafka.properties.security.protocol=SASL_PLAINTEXT
+spring.kafka.properties.sasl.mechanism=SCRAM-SHA-512
+spring.kafka.properties.sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required username="${KAFKA_USERNAME}" password="${KAFKA_PASSWORD}";
+```
+</CodeGroup>
+
+### Environment Variables
+
+<ParamField path="KAFKA_USERNAME" type="string" required>
+  Username for Kafka SASL authentication.
+</ParamField>
+
+<ParamField path="KAFKA_PASSWORD" type="string" required>
+  Password for Kafka SASL authentication.
+  
+  <Warning>Keep this value secure and never commit it to version control</Warning>
+</ParamField>
+
+## Consumer Configuration
+
+The application configures two separate consumer groups for different event types.
+
+### Base Consumer Settings
+
+<CodeGroup>
+```properties Consumer Settings
+# Consumer group ID
+spring.kafka.consumer.group-id=ventas-ms
+
+# Start consuming from earliest available message
+spring.kafka.consumer.auto-offset-reset=earliest
+
+# JSON deserialization
+spring.kafka.consumer.value-deserializer=org.springframework.kafka.support.serializer.JsonDeserializer
+
+# Ignore type headers from producer
+spring.kafka.consumer.properties.spring.json.use.type.headers=false
+
+# Default type for deserialization
+spring.kafka.consumer.properties.spring.json.value.default.type=ar.edu.uade.ecommerce.ventas.EventMessage
+
+# Trust all packages
+spring.kafka.consumer.properties.spring.json.trusted.packages=*
+```
+</CodeGroup>
+
+<ParamField path="spring.kafka.consumer.group-id" type="string" default="ventas-ms">
+  Consumer group identifier. Multiple instances with the same group ID share the message load.
+</ParamField>
+
+<ParamField path="spring.kafka.consumer.auto-offset-reset" type="string" default="earliest">
+  What to do when there is no initial offset:
+  - `earliest`: Start from the beginning of the topic
+  - `latest`: Start from the end (only new messages)
+  - `none`: Throw exception if no offset found
+</ParamField>
+
+### JSON Deserialization
+
+<ParamField path="spring.kafka.consumer.value-deserializer" type="string" default="org.springframework.kafka.support.serializer.JsonDeserializer">
+  Deserializer class for converting Kafka message values from JSON.
+</ParamField>
+
+<ParamField path="spring.kafka.consumer.properties.spring.json.use.type.headers" type="boolean" default="false">
+  When `false`, ignores type information from message headers, using the default type instead.
+</ParamField>
+
+<ParamField path="spring.kafka.consumer.properties.spring.json.value.default.type" type="string" default="ar.edu.uade.ecommerce.ventas.EventMessage">
+  The default Java class to deserialize message values into.
+</ParamField>
+
+<ParamField path="spring.kafka.consumer.properties.spring.json.trusted.packages" type="string" default="*">
+  Packages trusted for deserialization. `*` trusts all packages.
+  
+  <Warning>
+    In production, consider specifying exact package names for security:
+    `ar.edu.uade.ecommerce.*`
+  </Warning>
+</ParamField>
+
+## Ventas Topic Configuration
+
+Configuration for consuming sales events from the `ventas` topic:
+
+<CodeGroup>
+```properties Ventas Configuration
+# Enable/disable ventas consumer
+ventas.kafka.enabled=true
+
+# Topic name
+ventas.kafka.topic=ventas
+
+# Number of concurrent consumer threads
+ventas.kafka.concurrency=3
+
+# Disable listening to ventas topic by default
+ventas.kafka.listen-ventas=false
+```
+</CodeGroup>
+
+<ParamField path="ventas.kafka.enabled" type="boolean" default="true">
+  Master switch for the ventas consumer functionality.
+</ParamField>
+
+<ParamField path="ventas.kafka.topic" type="string" default="ventas">
+  Name of the Kafka topic for sales events.
+</ParamField>
+
+<ParamField path="ventas.kafka.concurrency" type="integer" default="3">
+  Number of concurrent consumer threads for processing ventas messages.
+  
+  Higher concurrency improves throughput but increases resource usage.
+</ParamField>
+
+<ParamField path="ventas.kafka.listen-ventas" type="boolean" default="false">
+  Controls whether the ventas topic listener is active.
+  
+  <Note>
+    Set to `false` by default. The application primarily consumes from the `inventario` topic.
+  </Note>
+</ParamField>
+
+## Inventario Topic Configuration
+
+Configuration for consuming inventory events from the `inventario` topic:
+
+<CodeGroup>
+```properties Inventario Configuration
+# Topic name
+inventario.kafka.topic=inventario
+
+# Number of concurrent consumer threads
+inventario.kafka.concurrency=1
+
+# Enable listening to inventario topic
+inventario.kafka.listen-inventario=true
+```
+</CodeGroup>
+
+<ParamField path="inventario.kafka.topic" type="string" default="inventario">
+  Name of the Kafka topic for inventory events.
+</ParamField>
+
+<ParamField path="inventario.kafka.concurrency" type="integer" default="1">
+  Number of concurrent consumer threads for processing inventario messages.
+</ParamField>
+
+<ParamField path="inventario.kafka.listen-inventario" type="boolean" default="true">
+  Controls whether the inventario topic listener is active. Set to `true` to consume inventory events.
+</ParamField>
+
+## Error Handling & Retry Configuration
+
+The application includes comprehensive error handling for failed message processing:
+
+<CodeGroup>
+```properties Error Handling
+# Maximum retry attempts for failed messages
+ventas.kafka.error.maxAttempts=3
+
+# Backoff time between retries (milliseconds)
+ventas.kafka.error.backoff.ms=500
+
+# Dead Letter Queue (DLQ) configuration
+ventas.kafka.dlq.enabled=false
+ventas.kafka.dlq.topicSuffix=.dlq
+
+# Don't fail startup if topics don't exist
+spring.kafka.listener.missing-topics-fatal=false
+```
+</CodeGroup>
+
+<ParamField path="ventas.kafka.error.maxAttempts" type="integer" default="3">
+  Maximum number of retry attempts for processing a failed message before giving up.
+</ParamField>
+
+<ParamField path="ventas.kafka.error.backoff.ms" type="integer" default="500">
+  Milliseconds to wait between retry attempts (backoff period).
+</ParamField>
+
+<ParamField path="ventas.kafka.dlq.enabled" type="boolean" default="false">
+  Enable Dead Letter Queue for messages that fail after all retry attempts.
+  
+  When enabled, failed messages are sent to `{topic-name}.dlq`.
+</ParamField>
+
+<ParamField path="ventas.kafka.dlq.topicSuffix" type="string" default=".dlq">
+  Suffix appended to the original topic name to create the DLQ topic name.
+</ParamField>
+
+<ParamField path="spring.kafka.listener.missing-topics-fatal" type="boolean" default="false">
+  When `false`, the application starts even if configured topics don't exist yet.
+  
+  Useful in development environments where topics may be created later.
+</ParamField>
+
+## Scheduled Retry Mechanism
+
+The application includes a scheduled task that retries failed events:
+
+<CodeGroup>
+```properties Retry Scheduler
+# Enable scheduled retry processing
+ventas.retry.enabled=true
+
+# Cron expression: every 6 hours
+ventas.retry.cron=0 0 */6 * * *
+
+# Maximum retry attempts for scheduled retries
+ventas.retry.maxAttempts=5
+
+# Cooldown period before retry (minutes)
+ventas.retry.cooldown.minutes=30
+
+# Number of events to process per batch
+ventas.retry.batchSize=100
+```
+</CodeGroup>
+
+<ParamField path="ventas.retry.enabled" type="boolean" default="true">
+  Enable the scheduled retry mechanism for failed events.
+</ParamField>
+
+<ParamField path="ventas.retry.cron" type="string" default="0 0 */6 * * *">
+  Cron expression defining when to run the retry scheduler.
+  
+  Default: Every 6 hours (`0 0 */6 * * *`)
+</ParamField>
+
+<ParamField path="ventas.retry.maxAttempts" type="integer" default="5">
+  Maximum retry attempts before permanently marking an event as failed.
+</ParamField>
+
+<ParamField path="ventas.retry.cooldown.minutes" type="integer" default="30">
+  Minimum time (in minutes) to wait before retrying a failed event.
+</ParamField>
+
+<ParamField path="ventas.retry.batchSize" type="integer" default="100">
+  Number of failed events to process in each retry batch.
+</ParamField>
+
+## Event Acknowledgment
+
+The application can send acknowledgments back to a middleware service after processing events:
+
+<CodeGroup>
+```properties ACK Configuration
+# Enable event acknowledgment
+communication.intermediary.ack.enabled=true
+
+# ACK endpoint path template
+communication.intermediary.ack.path=/events/{eventId}/ack
+
+# HTTP method for ACK requests
+communication.intermediary.ack.method=POST
+```
+</CodeGroup>
+
+<ParamField path="communication.intermediary.ack.enabled" type="boolean" default="true">
+  Enable sending acknowledgments to the middleware after processing events.
+</ParamField>
+
+<ParamField path="communication.intermediary.ack.path" type="string" default="/events/{eventId}/ack">
+  URL path template for the ACK endpoint. `{eventId}` is replaced with the actual event ID.
+</ParamField>
+
+<ParamField path="communication.intermediary.ack.method" type="string" default="POST">
+  HTTP method used for sending acknowledgments.
+</ParamField>
+
+## Logging Configuration
+
+<CodeGroup>
+```properties Logging
+# Consumer logging level
+logging.level.ar.edu.uade.ecommerce.ventas=INFO
+
+# Retry scheduler logging
+logging.level.ar.edu.uade.ecommerce.ventas.VentasInventoryRetryScheduler=INFO
+```
+</CodeGroup>
+
+## Local Development Setup
+
+For local development, you can run Kafka using Docker:
+
+<CodeGroup>
+```yaml docker-compose.yml
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+```
+
+```bash Create Topics
+# Create ventas topic
+kafka-topics --create \
+  --bootstrap-server localhost:9092 \
+  --topic ventas \
+  --partitions 3 \
+  --replication-factor 1
+
+# Create inventario topic
+kafka-topics --create \
+  --bootstrap-server localhost:9092 \
+  --topic inventario \
+  --partitions 3 \
+  --replication-factor 1
+```
+</CodeGroup>
+
+Set environment variables for local development:
+
+```bash
+KAFKA_BOOTSTRAP=localhost:9092
+KAFKA_USERNAME=your_kafka_user
+KAFKA_PASSWORD=your_kafka_password
+```
+
+## Production Considerations
+
+### Security
+
+<Warning>
+  For production environments:
+  - Use SSL/TLS encryption (`SASL_SSL` instead of `SASL_PLAINTEXT`)
+  - Store credentials in a secure secret management system
+  - Restrict network access to Kafka brokers
+  - Use strong SCRAM-SHA-512 passwords
+</Warning>
+
+### High Availability
+
+- Deploy multiple Kafka brokers (minimum 3 for production)
+- Set appropriate replication factors for topics (minimum 2-3)
+- Configure consumer groups for load balancing
+- Monitor consumer lag and throughput
+
+### Performance Tuning
+
+- Adjust `concurrency` based on message volume and processing time
+- Configure appropriate batch sizes and buffer settings
+- Monitor partition distribution across consumer instances
+- Tune retry and backoff settings based on failure patterns
+
+## Troubleshooting
+
+### Connection Issues
+
+- Verify Kafka brokers are accessible
+- Check `KAFKA_BOOTSTRAP` environment variable
+- Verify SASL credentials are correct
+- Review network firewall rules
+
+### Message Deserialization Errors
+
+- Check that message format matches `EventMessage` class
+- Verify `spring.json.trusted.packages` includes your package
+- Review JSON structure in Kafka messages
+- Enable debug logging to see raw message content
+
+### Consumer Lag
+
+- Increase `concurrency` for parallel processing
+- Optimize message processing logic
+- Check for downstream service bottlenecks
+- Monitor partition assignment across consumers
+
+### Authentication Failures
+
+- Verify SCRAM-SHA-512 user exists in Kafka
+- Check that credentials are correctly set in environment variables
+- Ensure JAAS configuration is properly formatted
+- Review Kafka broker logs for authentication errors

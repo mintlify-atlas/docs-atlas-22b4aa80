@@ -1,0 +1,178 @@
+---
+title: "Add Item to Cart"
+api: "POST /cart"
+description: "Create a new cart with items and automatically create a pending purchase"
+---
+
+## Authentication
+
+This endpoint requires Bearer token authentication. The user must have an active session.
+
+## Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication
+</ParamField>
+
+## Request Body
+
+<ParamField body="items" type="array" required>
+  Array of cart items to add
+  <ParamField body="product" type="object" required>
+    Product information
+    <ParamField body="id" type="integer" required>
+      Product ID
+    </ParamField>
+  </ParamField>
+  <ParamField body="quantity" type="integer" required>
+    Quantity of the product to add
+  </ParamField>
+</ParamField>
+
+## Response
+
+Returns a Purchase object with status PENDING:
+
+<ResponseField name="id" type="integer">
+  Purchase ID
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Purchase status (PENDING, CONFIRMED, or CANCELLED)
+</ResponseField>
+
+<ResponseField name="date" type="string">
+  Purchase creation date (ISO 8601 format)
+</ResponseField>
+
+<ResponseField name="reservationTime" type="string">
+  Reservation timestamp (ISO 8601 format)
+</ResponseField>
+
+<ResponseField name="cart" type="object">
+  The created cart
+  <ResponseField name="id" type="integer">
+    Cart ID
+  </ResponseField>
+  <ResponseField name="finalPrice" type="float">
+    Total cart price
+  </ResponseField>
+  <ResponseField name="items" type="array">
+    Cart items with updated product stock
+  </ResponseField>
+</ResponseField>
+
+## Business Logic
+
+1. **Product Validation**: Verifies that all products exist and are active
+2. **Stock Validation**: Checks if sufficient stock is available for each product
+3. **Price Calculation**: Automatically calculates the final cart price
+4. **Stock Deduction**: Reduces product stock by the ordered quantity
+5. **Purchase Creation**: Creates a PENDING purchase with 4-hour reservation time
+
+## Error Responses
+
+- **401 Unauthorized**: User session is not active or invalid token
+- **400 Bad Request**: 
+  - Product not found (header: `X-Error-Message: Producto no encontrado: ID {id}`)
+  - Product not active (header: `X-Error-Message: El producto '{title}' no está activo`)
+  - Insufficient stock (header: `X-Error-Message: Stock insuficiente para el producto '{title}'. Disponible: {stock}, Solicitado: {quantity}`)
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.example.com/cart" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "product": {"id": 10},
+        "quantity": 2
+      },
+      {
+        "product": {"id": 20},
+        "quantity": 1
+      }
+    ]
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/cart', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    items: [
+      { product: { id: 10 }, quantity: 2 },
+      { product: { id: 20 }, quantity: 1 }
+    ]
+  })
+});
+const purchase = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.example.com/cart',
+    headers={
+        'Authorization': 'Bearer YOUR_TOKEN',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'items': [
+            {'product': {'id': 10}, 'quantity': 2},
+            {'product': {'id': 20}, 'quantity': 1}
+        ]
+    }
+)
+purchase = response.json()
+```
+</CodeGroup>
+
+## Example Response
+
+```json
+{
+  "id": 42,
+  "status": "PENDING",
+  "date": "2026-03-12T10:30:00",
+  "reservationTime": "2026-03-12T10:30:00",
+  "cart": {
+    "id": 1,
+    "finalPrice": 299.98,
+    "items": [
+      {
+        "id": 1,
+        "quantity": 2,
+        "product": {
+          "id": 10,
+          "title": "Wireless Mouse",
+          "price": 49.99,
+          "stock": 98
+        }
+      },
+      {
+        "id": 2,
+        "quantity": 1,
+        "product": {
+          "id": 20,
+          "title": "Keyboard",
+          "price": 200.00,
+          "stock": 49
+        }
+      }
+    ]
+  }
+}
+```
+
+## Notes
+
+- The cart reservation is valid for 4 hours
+- Product stock is immediately reserved when the cart is created
+- If stock update fails, the response includes header `X-Stock-Error: true`

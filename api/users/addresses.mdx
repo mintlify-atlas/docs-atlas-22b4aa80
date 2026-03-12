@@ -1,0 +1,295 @@
+---
+title: "User Addresses"
+description: "Manage user addresses - list, create, update, and delete"
+---
+
+## Get User Addresses
+
+<api method="GET" endpoint="/user/addresses" />
+
+Retrieve all addresses for the authenticated user.
+
+### Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication. Format: `Bearer <token>`
+</ParamField>
+
+### Response
+
+Returns an array of Address objects:
+
+<ResponseField name="addresses" type="array">
+  <ResponseField name="id" type="integer">
+    Address unique identifier
+  </ResponseField>
+  <ResponseField name="description" type="string">
+    Address description or full address text
+  </ResponseField>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.example.com/user/addresses" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/user/addresses', {
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+  }
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "description": "123 Main St, City, Country"
+  },
+  {
+    "id": 2,
+    "description": "456 Oak Ave, Town, Country"
+  }
+]
+```
+
+---
+
+## Add Address
+
+<api method="POST" endpoint="/user/address" />
+
+Add a new address for the authenticated user.
+
+### Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication. Format: `Bearer <token>`
+</ParamField>
+
+### Request Body
+
+<ParamField body="description" type="string" required>
+  Address description or full address text
+</ParamField>
+
+### Response
+
+Returns the created Address object:
+
+<ResponseField name="id" type="integer">
+  Address unique identifier
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Address description or full address text
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "https://api.example.com/user/address" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "789 Elm Street, Village, Country"
+  }'
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/user/address', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    description: '789 Elm Street, Village, Country'
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+{
+  "id": 3,
+  "description": "789 Elm Street, Village, Country"
+}
+```
+
+### Error Responses
+
+<ResponseField name="401" type="error">
+  Unauthorized - Invalid or missing token. Returns: `"Usuario no logueado"`
+</ResponseField>
+
+<ResponseField name="409" type="error">
+  Conflict - Address already exists for the user. Returns: `"La dirección ya existe para el usuario"`
+</ResponseField>
+
+---
+
+## Update Address
+
+<api method="PUT" endpoint="/user/address/{id}" />
+
+Update an existing address for the authenticated user.
+
+### Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication. Format: `Bearer <token>`
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  The ID of the address to update
+</ParamField>
+
+### Request Body
+
+<ParamField body="description" type="string" required>
+  Updated address description or full address text
+</ParamField>
+
+### Response
+
+Returns the updated Address object:
+
+<ResponseField name="id" type="integer">
+  Address unique identifier
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Updated address description
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X PUT "https://api.example.com/user/address/1" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "123 Main Street, Updated City, Country"
+  }'
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/user/address/1', {
+  method: 'PUT',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    description: '123 Main Street, Updated City, Country'
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+{
+  "id": 1,
+  "description": "123 Main Street, Updated City, Country"
+}
+```
+
+### Error Responses
+
+<ResponseField name="401" type="error">
+  Unauthorized - Invalid or missing token. Returns: `"Usuario no logueado"`
+</ResponseField>
+
+---
+
+## Delete Address
+
+<api method="DELETE" endpoint="/user/address/{id}" />
+
+Delete an address for the authenticated user.
+
+### Authentication
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication. Format: `Bearer <token>`
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  The ID of the address to delete
+</ParamField>
+
+### Response
+
+Returns a success message:
+
+```json
+"Dirección eliminada con éxito"
+```
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X DELETE "https://api.example.com/user/address/1" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/user/address/1', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': 'Bearer YOUR_ACCESS_TOKEN'
+  }
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+</CodeGroup>
+
+### Error Responses
+
+<ResponseField name="401" type="error">
+  Unauthorized - Invalid or missing token. Returns: `"Usuario no logueado"`
+</ResponseField>
+
+---
+
+## Alternative Endpoint: /address
+
+The AddressController also provides an alternative endpoint for retrieving user addresses:
+
+<api method="GET" endpoint="/address/user" />
+
+This endpoint functions identically to `/user/addresses` and returns the same response format.

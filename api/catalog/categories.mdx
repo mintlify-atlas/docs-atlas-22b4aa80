@@ -1,0 +1,251 @@
+---
+title: "Categories"
+api: "GET /categories"
+description: "Manage product categories in the e-commerce catalog"
+---
+
+## Get All Active Categories
+
+<api method="GET" endpoint="/categories" />
+
+Retrieve all active categories in the system.
+
+### Response
+
+Returns an array of CategoryDTO objects:
+
+<ResponseField name="categories" type="array">
+  <ResponseField name="id" type="long">
+    Category unique identifier
+  </ResponseField>
+  <ResponseField name="name" type="string">
+    Category name
+  </ResponseField>
+  <ResponseField name="active" type="boolean">
+    Whether the category is active (always true for this endpoint)
+  </ResponseField>
+  <ResponseField name="categoryCode" type="integer">
+    Stable category code used across microservices
+  </ResponseField>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.example.com/categories"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/categories')
+  .then(response => response.json())
+  .then(data => console.log(data));
+```
+
+```python Python
+import requests
+
+response = requests.get('https://api.example.com/categories')
+categories = response.json()
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Footwear",
+    "active": true,
+    "categoryCode": 2001
+  },
+  {
+    "id": 2,
+    "name": "Apparel",
+    "active": true,
+    "categoryCode": 2002
+  },
+  {
+    "id": 3,
+    "name": "Accessories",
+    "active": true,
+    "categoryCode": 2003
+  }
+]
+```
+
+---
+
+## Bulk Add Categories
+
+<api method="POST" endpoint="/categories/bulk" />
+
+Create multiple categories in a single request. This endpoint handles duplicate prevention and efficient batch processing.
+
+### Request Body
+
+<ParamField body="categories" type="array" required>
+  Array of category objects to create
+  <ParamField body="name" type="string">
+    Category name (nullable, but only one null name allowed per request)
+  </ParamField>
+  <ParamField body="active" type="boolean">
+    Whether the category should be active (defaults to true)
+  </ParamField>
+  <ParamField body="categoryCode" type="integer">
+    Optional category code for cross-microservice stability
+  </ParamField>
+</ParamField>
+
+### Response
+
+Returns an array of created/existing CategoryDTO objects:
+
+<ResponseField name="categories" type="array">
+  <ResponseField name="id" type="long">
+    Category unique identifier
+  </ResponseField>
+  <ResponseField name="name" type="string">
+    Category name
+  </ResponseField>
+  <ResponseField name="active" type="boolean">
+    Whether the category is active
+  </ResponseField>
+  <ResponseField name="categoryCode" type="integer">
+    Stable category code
+  </ResponseField>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "https://api.example.com/categories/bulk" \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "name": "Electronics",
+      "active": true
+    },
+    {
+      "name": "Home & Garden",
+      "active": true
+    },
+    {
+      "name": "Sports",
+      "active": false
+    }
+  ]'
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/categories/bulk', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify([
+    { name: 'Electronics', active: true },
+    { name: 'Home & Garden', active: true },
+    { name: 'Sports', active: false }
+  ])
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+```python Python
+import requests
+
+categories = [
+    {'name': 'Electronics', 'active': True},
+    {'name': 'Home & Garden', 'active': True},
+    {'name': 'Sports', 'active': False}
+]
+
+response = requests.post('https://api.example.com/categories/bulk', json=categories)
+result = response.json()
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+[
+  {
+    "id": 4,
+    "name": "Electronics",
+    "active": true,
+    "categoryCode": null
+  },
+  {
+    "id": 5,
+    "name": "Home & Garden",
+    "active": true,
+    "categoryCode": null
+  }
+]
+```
+
+### Notes
+
+- Duplicate categories within the same request are filtered (case-insensitive name matching)
+- If a category already exists in the database, the existing category is returned
+- Only one category with a `null` name can be added per request
+- Categories with `active: false` or `null` and `active: false` are skipped
+- Empty or null category objects in the array are ignored
+
+---
+
+## Category Entity Structure
+
+The Category entity contains the following fields:
+
+- **id** (Integer): Auto-generated unique identifier
+- **name** (String): Category name (nullable)
+- **active** (boolean): Active status (defaults to true)
+- **categoryCode** (Integer): Stable code used across microservices (unique, nullable)
+
+---
+
+## Disabled Mock Endpoints
+
+The following endpoints are disabled and return HTTP 501 Not Implemented:
+
+- `GET /categories/sync` - Synchronize categories from mock
+- `POST /categories/mock/add` - Add category from mock
+- `PATCH /categories/mock/activate` - Activate category from mock
+- `PATCH /categories/mock/deactivate` - Deactivate category from mock
+- `PATCH /categories/mock/update` - Update category from mock
+
+Category synchronization should be handled through the Communication API (Core) instead of these mock endpoints.
+
+---
+
+## Business Logic
+
+### Duplicate Handling
+
+The bulk add endpoint implements sophisticated duplicate prevention:
+
+1. **Database duplicates**: Checks existing categories by name (case-insensitive)
+2. **Request duplicates**: Tracks processed names within the same request
+3. **Null names**: Special handling allows only one null-named category per request and in the database
+
+### Active Status
+
+- Categories default to `active: true` when created
+- The GET `/categories` endpoint only returns active categories
+- Inactive categories with `null` names are not added during bulk operations
+
+### Category Codes
+
+Category codes provide stable identifiers across microservices:
+- Unique constraint enforced at database level
+- Optional field (nullable)
+- Used for synchronization between distributed systems

@@ -1,0 +1,482 @@
+---
+title: 'Installation'
+description: 'Complete installation guide for the E-commerce Backend API'
+---
+
+## Overview
+
+This guide provides detailed instructions for installing and configuring the E-commerce Backend API in both development and production environments.
+
+<Note>
+  The E-commerce API is built with Spring Boot 3.5.4 and requires Java 17, Maven, MySQL, and Keycloak for authentication.
+</Note>
+
+## Prerequisites
+
+<Steps>
+  <Step title="Install Java 17">
+    The application requires Java 17 or higher.
+
+    <CodeGroup>
+    ```bash macOS (Homebrew)
+    brew install openjdk@17
+    ```
+
+    ```bash Ubuntu/Debian
+    sudo apt update
+    sudo apt install openjdk-17-jdk
+    ```
+
+    ```bash Windows (using Chocolatey)
+    choco install openjdk17
+    ```
+    </CodeGroup>
+
+    Verify the installation:
+
+    ```bash
+    java -version
+    # Should output: openjdk version "17.x.x"
+    ```
+  </Step>
+
+  <Step title="Install Maven 3.6+">
+    Maven is required to build the application.
+
+    <CodeGroup>
+    ```bash macOS (Homebrew)
+    brew install maven
+    ```
+
+    ```bash Ubuntu/Debian
+    sudo apt install maven
+    ```
+
+    ```bash Windows (using Chocolatey)
+    choco install maven
+    ```
+    </CodeGroup>
+
+    Verify the installation:
+
+    ```bash
+    mvn -version
+    # Should output: Apache Maven 3.6.x or higher
+    ```
+  </Step>
+
+  <Step title="Install MySQL 8.0+">
+    The application uses MySQL as its primary database.
+
+    <CodeGroup>
+    ```bash macOS (Homebrew)
+    brew install mysql
+    brew services start mysql
+    ```
+
+    ```bash Ubuntu/Debian
+    sudo apt install mysql-server
+    sudo systemctl start mysql
+    ```
+
+    ```bash Docker (Recommended for development)
+    docker run -d \
+      --name mysql-ecommerce \
+      -e MYSQL_ROOT_PASSWORD=rootpassword \
+      -e MYSQL_DATABASE=ecommerce \
+      -e MYSQL_USER=ecommerce_user \
+      -e MYSQL_PASSWORD=ecommerce_pass \
+      -p 3306:3306 \
+      mysql:8.0
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Install Docker & Docker Compose">
+    Docker is required to run Keycloak for authentication.
+
+    Follow the official installation guides:
+    - [Docker Desktop](https://docs.docker.com/get-docker/) (includes Docker Compose)
+    - [Docker Engine](https://docs.docker.com/engine/install/) for Linux servers
+
+    Verify the installation:
+
+    ```bash
+    docker --version
+    docker-compose --version
+    ```
+  </Step>
+</Steps>
+
+## Database Setup
+
+<Steps>
+  <Step title="Create the database">
+    Connect to MySQL and create the e-commerce database:
+
+    ```sql
+    CREATE DATABASE ecommerce CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    ```
+
+    Create a dedicated user (recommended for production):
+
+    ```sql
+    CREATE USER 'ecommerce_user'@'localhost' IDENTIFIED BY 'secure_password';
+    GRANT ALL PRIVILEGES ON ecommerce.* TO 'ecommerce_user'@'localhost';
+    FLUSH PRIVILEGES;
+    ```
+  </Step>
+
+  <Step title="Configure database connection">
+    The application will automatically create tables using JPA/Hibernate. The schema is managed with `spring.jpa.hibernate.ddl-auto=update`.
+
+    <Warning>
+      In production, consider using `validate` or managing schema migrations with tools like Flyway or Liquibase.
+    </Warning>
+  </Step>
+</Steps>
+
+## Keycloak Setup
+
+<Steps>
+  <Step title="Start Keycloak using Docker Compose">
+    The project includes a pre-configured `docker-compose.yml` file:
+
+    ```yaml docker-compose.yml
+    version: '3.8'
+    services:
+      keycloak:
+        image: quay.io/keycloak/keycloak:24.0.4
+        environment:
+          KEYCLOAK_ADMIN: admin
+          KEYCLOAK_ADMIN_PASSWORD: admin
+          KC_IMPORT: /opt/keycloak/data/import/realm-export.json
+        command: ["start-dev"]
+        ports:
+          - "8080:8080"
+        volumes:
+          - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json:ro
+        healthcheck:
+          test: ["CMD", "curl", "-f", "http://localhost:8080/realms/ecommerce"]
+          interval: 10s
+          retries: 10
+        restart: unless-stopped
+    ```
+
+    Start Keycloak:
+
+    ```bash
+    docker-compose up -d
+    ```
+
+    Wait for Keycloak to be ready (check with `docker-compose ps`).
+  </Step>
+
+  <Step title="Verify Keycloak configuration">
+    The included `realm-export.json` automatically configures:
+    - Realm: `ecommerce`
+    - Client ID: `ecommerce-module`
+    - Client Secret: `ecommerce-secret`
+    - Service accounts enabled for client credentials flow
+
+    Access the Keycloak admin console at `http://localhost:8080` and login with:
+    - Username: `admin`
+    - Password: `admin`
+
+    <Note>
+      The token endpoint is: `http://localhost:8080/realms/ecommerce/protocol/openid-connect/token`
+    </Note>
+  </Step>
+</Steps>
+
+## Environment Configuration
+
+<Steps>
+  <Step title="Configure environment variables">
+    The application requires several environment variables. Create a `.env` file or set them in your environment:
+
+    ```bash .env
+    # ===================
+    # Server Configuration
+    # ===================
+    SERVER_PORT=8081
+
+    # ===================
+    # Database Configuration
+    # ===================
+    SPRING_DATASOURCE_URL=localhost:3306/ecommerce
+    SPRING_DATASOURCE_USERNAME=ecommerce_user
+    SPRING_DATASOURCE_PASSWORD=secure_password
+
+    # ===================
+    # JWT Configuration
+    # ===================
+    # Must be at least 256 bits (32 characters)
+    JWT_SECRET=your-super-secure-secret-key-must-be-at-least-32-characters-long
+
+    # ===================
+    # Keycloak Configuration
+    # ===================
+    KEYCLOAK_TOKEN_URL=http://localhost:8080/realms/ecommerce/protocol/openid-connect/token
+    KEYCLOAK_CLIENT_SECRET=ecommerce-secret
+
+    # ===================
+    # Email Configuration (SMTP)
+    # ===================
+    SPRING_MAIL_USERNAME=your-email@gmail.com
+    SPRING_MAIL_PASSWORD=your-gmail-app-password
+
+    # ===================
+    # Kafka Configuration
+    # ===================
+    KAFKA_BOOTSTRAP=localhost:9092
+    KAFKA_USERNAME=kafka-user
+    KAFKA_PASSWORD=kafka-password
+
+    # ===================
+    # Optional: External APIs
+    # ===================
+    CORE_API_URL=http://localhost:8086
+    KAFKA_MIDDLEWARE_URL=http://localhost:8090
+    ```
+
+    <Warning>
+      Never commit your `.env` file to version control. Add it to `.gitignore`.
+    </Warning>
+  </Step>
+
+  <Step title="Configure Gmail for email notifications (Optional)">
+    If you want to enable email notifications:
+
+    1. Go to your Google Account settings
+    2. Enable 2-factor authentication
+    3. Generate an App Password for "Mail"
+    4. Use the generated password in `SPRING_MAIL_PASSWORD`
+
+    The application uses Gmail SMTP with these settings:
+    - Host: `smtp.gmail.com`
+    - Port: `587`
+    - STARTTLS: enabled
+  </Step>
+</Steps>
+
+## Building the Application
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone <repository-url>
+    cd ecommerce-backend
+    ```
+  </Step>
+
+  <Step title="Build with Maven">
+    Build the application and create the executable JAR:
+
+    ```bash
+    mvn clean install
+    ```
+
+    This will:
+    - Compile the Java source code
+    - Process resources
+    - Run tests (if enabled)
+    - Create an executable JAR in `target/app.jar`
+
+    <Note>
+      The final JAR name is configured as `app.jar` in the `pom.xml` file.
+    </Note>
+  </Step>
+
+  <Step title="Skip tests (optional)">
+    If you need to build without running tests:
+
+    ```bash
+    mvn clean install -DskipTests
+    ```
+  </Step>
+</Steps>
+
+## Running the Application
+
+<CodeGroup>
+```bash Development mode (with Maven)
+mvn spring-boot:run
+```
+
+```bash Production mode (with JAR)
+java -jar target/app.jar
+```
+
+```bash With custom profile
+java -jar target/app.jar --spring.profiles.active=production
+```
+
+```bash With environment variables
+export SERVER_PORT=8081
+export SPRING_DATASOURCE_URL=localhost:3306/ecommerce
+java -jar target/app.jar
+```
+</CodeGroup>
+
+The application will start on the configured port (default: 8081) with the context path `/api`.
+
+## Verification
+
+<Steps>
+  <Step title="Check application health">
+    Verify the application is running:
+
+    ```bash
+    curl http://localhost:8081/api/auth/health
+    ```
+  </Step>
+
+  <Step title="Access Swagger documentation">
+    Open your browser and navigate to:
+
+    ```
+    http://localhost:8081/swagger-ui.html
+    ```
+
+    You should see the interactive API documentation powered by SpringDoc OpenAPI.
+  </Step>
+
+  <Step title="Test authentication">
+    Register a test user:
+
+    ```bash
+    curl -X POST http://localhost:8081/api/auth/register \
+      -H "Content-Type: application/json" \
+      -d '{
+        "email": "admin@example.com",
+        "password": "AdminPass123!",
+        "name": "Admin",
+        "lastname": "User"
+      }'
+    ```
+
+    Then login:
+
+    ```bash
+    curl -X POST http://localhost:8081/api/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{
+        "email": "admin@example.com",
+        "password": "AdminPass123!"
+      }'
+    ```
+
+    You should receive a JWT token in the response.
+  </Step>
+</Steps>
+
+## Application Properties Reference
+
+Here are the key configurations from `application.properties`:
+
+### Server Configuration
+```properties
+spring.application.name=Ecommerce
+server.port=${SERVER_PORT:8081}
+server.servlet.context-path=/api
+server.forward-headers-strategy=framework
+```
+
+### Database Configuration
+```properties
+spring.datasource.url=jdbc:mysql://${SPRING_DATASOURCE_URL}
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD}
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=false
+```
+
+### Security Configuration
+```properties
+jwt.secret=${JWT_SECRET}
+keycloak.token.url=${KEYCLOAK_TOKEN_URL:http://localhost:8080/realms/ecommerce/protocol/openid-connect/token}
+keycloak.client-id=ventas-app
+keycloak.client-secret=${KEYCLOAK_CLIENT_SECRET}
+```
+
+### Kafka Configuration
+```properties
+spring.kafka.bootstrap-servers=${KAFKA_BOOTSTRAP:localhost:9092}
+spring.kafka.consumer.group-id=ventas-ms
+spring.kafka.consumer.auto-offset-reset=earliest
+ventas.kafka.enabled=true
+ventas.kafka.topic=ventas
+```
+
+## Production Deployment
+
+<Warning>
+  For production deployments, follow these security best practices:
+  - Use a secrets management solution (AWS Secrets Manager, HashiCorp Vault)
+  - Enable HTTPS/TLS
+  - Use production-grade Keycloak (not dev mode)
+  - Configure proper database connection pooling
+  - Set `spring.jpa.hibernate.ddl-auto=validate`
+  - Enable application monitoring and logging
+  - Use environment-specific profiles
+</Warning>
+
+### Systemd Service (Linux)
+
+Create a systemd service file at `/etc/systemd/system/ecommerce-api.service`:
+
+```ini
+[Unit]
+Description=E-commerce Backend API
+After=mysql.service
+
+[Service]
+Type=simple
+User=ecommerce
+WorkingDirectory=/opt/ecommerce
+ExecStart=/usr/bin/java -jar /opt/ecommerce/app.jar
+Restart=on-failure
+RestartSec=10
+
+Environment="SERVER_PORT=8081"
+Environment="SPRING_DATASOURCE_URL=localhost:3306/ecommerce"
+EnvironmentFile=/opt/ecommerce/.env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service:
+
+```bash
+sudo systemctl enable ecommerce-api
+sudo systemctl start ecommerce-api
+sudo systemctl status ecommerce-api
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/configuration/keycloak">
+    Configure JWT and Keycloak authentication
+  </Card>
+  <Card title="Database Configuration" icon="database" href="/configuration/database">
+    Set up MySQL connection and schema
+  </Card>
+  <Card title="Kafka Integration" icon="stream" href="/configuration/kafka">
+    Configure event-driven messaging
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/auth/login">
+    Explore all available endpoints
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/configuration/environment">
+    Advanced configuration options
+  </Card>
+  
+  <Card title="Events" icon="stream" href="/events/overview">
+    Learn about event-driven architecture
+  </Card>
+</CardGroup>

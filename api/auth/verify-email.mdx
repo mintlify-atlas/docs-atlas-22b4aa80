@@ -1,0 +1,112 @@
+---
+title: 'Verify Email'
+api: 'POST /auth/verify-email'
+description: 'Verify user email address with verification token'
+---
+
+## Authentication
+
+This endpoint does not require authentication.
+
+## Request Body
+
+<ParamField body="email" type="string" required>
+  The email address of the account to verify
+</ParamField>
+
+<ParamField body="token" type="string" required>
+  The verification token sent to the user's email during registration
+</ParamField>
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success message confirming account verification
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Error message if verification fails
+</ResponseField>
+
+## Response Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Email verified successfully |
+| 400 | Bad request - invalid request, missing fields, or incorrect token |
+
+## Validation
+
+The endpoint performs the following validations:
+
+1. **Request validation**: Ensures the request body is not null
+2. **Field validation**: Checks that both email and token are provided
+3. **Token verification**: Validates that the token matches the one sent to the email
+
+<Warning>
+  Both email and token are required fields. If either is missing, the request will fail with a 400 Bad Request.
+</Warning>
+
+<Note>
+  After successful email verification, users can log in using the `/auth/login` endpoint.
+</Note>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.example.com/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "token": "123456"
+  }'
+```
+
+```java Java
+@PostMapping("/verify-email")
+public ResponseEntity<Map<String, String>> verifyEmail(@RequestBody Map<String, String> request) {
+    if (request == null) {
+        return ResponseEntity.badRequest().body(Map.of("error", "Solicitud inválida"));
+    }
+    String email = request.get("email");
+    String token = request.get("token");
+    if (email == null || token == null) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Email o token faltante"));
+    }
+    try {
+        boolean verified = authService.verifyEmailToken(email, token);
+        if (verified) {
+            return ResponseEntity.ok(Map.of("message", "Cuenta verificada exitosamente. Ya puedes iniciar sesión."));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", "El token ingresado no es el correcto, intentelo nuevamente"));
+        }
+    } catch (Exception ex) {
+        logger.warn("Error verificando token para {}: {}", email, ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("error", "El token ingresado no es el correcto, intentelo nuevamente"));
+    }
+}
+```
+
+```json Response (Success - 200)
+{
+  "message": "Cuenta verificada exitosamente. Ya puedes iniciar sesión."
+}
+```
+
+```json Response (Invalid Token - 400)
+{
+  "error": "El token ingresado no es el correcto, intentelo nuevamente"
+}
+```
+
+```json Response (Missing Fields - 400)
+{
+  "error": "Email o token faltante"
+}
+```
+
+</CodeGroup>

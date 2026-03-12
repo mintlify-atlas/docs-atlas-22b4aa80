@@ -1,0 +1,138 @@
+---
+title: "Create Purchase"
+api: "POST /purchase"
+description: "Create a new purchase with pending status"
+---
+
+## Authentication
+
+This endpoint requires Bearer token authentication. The user must have an active session.
+
+## Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication
+</ParamField>
+
+## Request Body
+
+<ParamField body="cart" type="object" required>
+  Cart object to associate with the purchase
+  <ParamField body="id" type="integer" required>
+    Cart ID
+  </ParamField>
+</ParamField>
+
+<ParamField body="date" type="string">
+  Purchase date in ISO 8601 format (optional, defaults to current time)
+</ParamField>
+
+<ParamField body="reservationTime" type="string">
+  Reservation timestamp in ISO 8601 format (optional)
+</ParamField>
+
+<ParamField body="direction" type="string">
+  Delivery address (optional)
+</ParamField>
+
+## Response
+
+<ResponseField name="id" type="integer">
+  The unique identifier of the purchase
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Purchase status - automatically set to "PENDING"
+</ResponseField>
+
+<ResponseField name="date" type="string">
+  Purchase creation date (ISO 8601 format)
+</ResponseField>
+
+<ResponseField name="reservationTime" type="string">
+  Reservation timestamp (ISO 8601 format)
+</ResponseField>
+
+<ResponseField name="direction" type="string">
+  Delivery address if provided
+</ResponseField>
+
+<ResponseField name="cart" type="object">
+  Associated cart object
+</ResponseField>
+
+## Business Logic
+
+- The user is automatically set from the authentication token
+- Status is automatically set to PENDING
+- No Kafka event is emitted (cart creation handles events)
+
+## Error Responses
+
+- **401 Unauthorized**: User is not authenticated or session is inactive
+
+<CodeGroup>
+```bash cURL
+curl -X POST "https://api.example.com/purchase" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cart": {"id": 1},
+    "direction": "123 Main St, Apt 4B"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/purchase', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    cart: { id: 1 },
+    direction: '123 Main St, Apt 4B'
+  })
+});
+const purchase = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    'https://api.example.com/purchase',
+    headers={
+        'Authorization': 'Bearer YOUR_TOKEN',
+        'Content-Type': 'application/json'
+    },
+    json={
+        'cart': {'id': 1},
+        'direction': '123 Main St, Apt 4B'
+    }
+)
+purchase = response.json()
+```
+</CodeGroup>
+
+## Example Response
+
+```json
+{
+  "id": 42,
+  "status": "PENDING",
+  "date": "2026-03-12T10:30:00",
+  "reservationTime": "2026-03-12T10:30:00",
+  "direction": "123 Main St, Apt 4B",
+  "cart": {
+    "id": 1,
+    "finalPrice": 299.98
+  }
+}
+```
+
+## Notes
+
+- Typically, purchases are created automatically when adding items to cart
+- This endpoint allows manual purchase creation if needed
+- The purchase status starts as PENDING and can be confirmed later

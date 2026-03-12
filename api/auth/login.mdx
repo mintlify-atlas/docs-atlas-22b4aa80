@@ -1,0 +1,139 @@
+---
+title: 'Login'
+api: 'POST /auth/login'
+description: 'Authenticate a user and receive a bearer token'
+---
+
+## Authentication
+
+This endpoint does not require authentication.
+
+## Request Body
+
+<ParamField body="email" type="string" required>
+  The user's email address
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The user's password
+</ParamField>
+
+## Response
+
+<ResponseField name="success" type="boolean" required>
+  Indicates if the login was successful
+</ResponseField>
+
+<ResponseField name="bearer_token" type="string">
+  JWT authentication token to be used in subsequent API requests
+</ResponseField>
+
+<ResponseField name="user" type="object">
+  User information object
+  
+  <ResponseField name="id" type="integer">
+    The user's unique identifier
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    The user's first name
+  </ResponseField>
+  
+  <ResponseField name="lastname" type="string">
+    The user's last name
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    The user's email address
+  </ResponseField>
+  
+  <ResponseField name="addresses" type="array">
+    List of user addresses
+  </ResponseField>
+</ResponseField>
+
+## Response Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Login successful |
+| 400 | Bad request - missing or invalid credentials |
+| 401 | Unauthorized - invalid credentials |
+
+## Error Responses
+
+When login fails, the response will have `success: false` and null values for `bearer_token` and `user`:
+
+```json
+{
+  "success": false,
+  "bearer_token": null,
+  "user": null
+}
+```
+
+<Warning>
+  Both email and password fields are required and cannot be blank. The endpoint will return a 400 Bad Request if either field is missing or empty.
+</Warning>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.example.com/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "securePassword123"
+  }'
+```
+
+```java Java
+@PostMapping("/login")
+public ResponseEntity<UserLoginResponseDTO> login(@RequestBody Map<String, String> request) {
+    if (request == null) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(failLogin());
+    }
+    String email = request.get("email");
+    String password = request.get("password");
+    if (email == null || password == null || email.isBlank() || password.isBlank()) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(failLogin());
+    }
+    String token = authService.login(email, password);
+    User user = authService.getUserByEmail(email);
+    UserLoginResponseDTO.UserBasicDTO userDTO = new UserLoginResponseDTO.UserBasicDTO();
+    userDTO.setId(user.getId());
+    userDTO.setName(user.getName());
+    userDTO.setLastname(user.getLastname());
+    userDTO.setEmail(user.getEmail());
+    userDTO.setAddresses(user.getAddresses());
+    user.setSessionActive(true);
+    authService.saveUser(user);
+    UserLoginResponseDTO response = new UserLoginResponseDTO();
+    response.setSuccess(true);
+    response.setBearer_token(token);
+    response.setUser(userDTO);
+    return ResponseEntity.ok(response);
+}
+```
+
+```json Response (Success)
+{
+  "success": true,
+  "bearer_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 123,
+    "name": "John",
+    "lastname": "Doe",
+    "email": "user@example.com",
+    "addresses": []
+  }
+}
+```
+
+</CodeGroup>
+
+<Note>
+  The bearer token returned should be included in the `Authorization` header as `Bearer {token}` for authenticated requests.
+</Note>

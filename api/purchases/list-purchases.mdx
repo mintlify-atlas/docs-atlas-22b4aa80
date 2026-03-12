@@ -1,0 +1,190 @@
+---
+title: "List User Purchases"
+api: "GET /purchase/user-purchases"
+description: "Retrieve all purchases for the authenticated user with full cart details"
+---
+
+## Authentication
+
+This endpoint requires Bearer token authentication. The user must have an active session.
+
+## Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token for authentication
+</ParamField>
+
+## Response
+
+Returns an array of purchase objects with cart details:
+
+<ResponseField name="id" type="integer">
+  Purchase ID
+</ResponseField>
+
+<ResponseField name="date" type="string">
+  Purchase date (ISO 8601 format)
+</ResponseField>
+
+<ResponseField name="reservationTime" type="string">
+  Reservation timestamp (ISO 8601 format)
+</ResponseField>
+
+<ResponseField name="direction" type="string">
+  Delivery address
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Purchase status (PENDING, CONFIRMED, or CANCELLED)
+</ResponseField>
+
+<ResponseField name="cart" type="object">
+  Cart details
+  <ResponseField name="id" type="integer">
+    Cart ID
+  </ResponseField>
+  <ResponseField name="finalPrice" type="float">
+    Total cart price
+  </ResponseField>
+  <ResponseField name="items" type="array">
+    Cart items
+    <ResponseField name="id" type="integer">
+      Cart item ID
+    </ResponseField>
+    <ResponseField name="quantity" type="integer">
+      Product quantity
+    </ResponseField>
+    <ResponseField name="product" type="object">
+      Product details
+      <ResponseField name="id" type="integer">
+        Product ID
+      </ResponseField>
+      <ResponseField name="title" type="string">
+        Product title
+      </ResponseField>
+      <ResponseField name="description" type="string">
+        Product description
+      </ResponseField>
+      <ResponseField name="price" type="float">
+        Product price
+      </ResponseField>
+      <ResponseField name="mediaSrc" type="array">
+        Product image URLs
+      </ResponseField>
+      <ResponseField name="productCode" type="integer">
+        Product code
+      </ResponseField>
+    </ResponseField>
+  </ResponseField>
+</ResponseField>
+
+## Error Responses
+
+- **401 Unauthorized**: User is not authenticated or session is inactive
+
+<CodeGroup>
+```bash cURL
+curl -X GET "https://api.example.com/purchase/user-purchases" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.example.com/purchase/user-purchases', {
+  method: 'GET',
+  headers: {
+    'Authorization': 'Bearer YOUR_TOKEN'
+  }
+});
+const purchases = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    'https://api.example.com/purchase/user-purchases',
+    headers={'Authorization': 'Bearer YOUR_TOKEN'}
+)
+purchases = response.json()
+```
+</CodeGroup>
+
+## Example Response
+
+```json
+[
+  {
+    "id": 42,
+    "date": "2026-03-12T10:30:00",
+    "reservationTime": "2026-03-12T10:30:00",
+    "direction": "123 Main St, Apt 4B",
+    "status": "CONFIRMED",
+    "cart": {
+      "id": 1,
+      "finalPrice": 299.98,
+      "items": [
+        {
+          "id": 1,
+          "quantity": 2,
+          "product": {
+            "id": 10,
+            "title": "Wireless Mouse",
+            "description": "Ergonomic wireless mouse",
+            "price": 49.99,
+            "mediaSrc": ["https://example.com/images/mouse.jpg"],
+            "productCode": 1001
+          }
+        },
+        {
+          "id": 2,
+          "quantity": 1,
+          "product": {
+            "id": 20,
+            "title": "Mechanical Keyboard",
+            "description": "RGB mechanical keyboard",
+            "price": 200.00,
+            "mediaSrc": ["https://example.com/images/keyboard.jpg"],
+            "productCode": 1002
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": 41,
+    "date": "2026-03-11T15:20:00",
+    "reservationTime": "2026-03-11T15:20:00",
+    "direction": "456 Oak Avenue",
+    "status": "PENDING",
+    "cart": {
+      "id": 2,
+      "finalPrice": 150.00,
+      "items": [
+        {
+          "id": 3,
+          "quantity": 1,
+          "product": {
+            "id": 30,
+            "title": "USB Cable",
+            "description": "USB-C to USB-A cable",
+            "price": 150.00,
+            "mediaSrc": ["https://example.com/images/cable.jpg"],
+            "productCode": 1003
+          }
+        }
+      ]
+    }
+  }
+]
+```
+
+## Alternative Endpoints
+
+- **GET /purchase/my-purchases**: Returns simplified invoice format (PurchaseInvoiceDTO)
+- **GET /purchase**: Returns all purchases (admin use, no authentication)
+
+## Notes
+
+- Only returns purchases for the authenticated user
+- Includes full cart and product details
+- Purchases are ordered by most recent first

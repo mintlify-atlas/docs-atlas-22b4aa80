@@ -1,0 +1,159 @@
+---
+title: 'Register'
+api: 'POST /auth/register'
+description: 'Register a new user account and send email verification'
+---
+
+## Authentication
+
+This endpoint does not require authentication.
+
+## Request Body
+
+<ParamField body="name" type="string" required>
+  The user's first name. Must contain at least one letter (A-Z, a-z, or accented characters)
+</ParamField>
+
+<ParamField body="lastname" type="string" required>
+  The user's last name
+</ParamField>
+
+<ParamField body="email" type="string" required>
+  The user's email address. Must be unique
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  The user's password
+</ParamField>
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success message indicating the registration status and next steps
+</ResponseField>
+
+<ResponseField name="user" type="object">
+  Registered user information
+  
+  <ResponseField name="id" type="integer">
+    The newly created user's unique identifier
+  </ResponseField>
+  
+  <ResponseField name="name" type="string">
+    The user's first name
+  </ResponseField>
+  
+  <ResponseField name="lastname" type="string">
+    The user's last name
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    The user's email address
+  </ResponseField>
+</ResponseField>
+
+## Response Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 201 | User registered successfully |
+| 200 | Account exists but not active - verification email resent |
+| 400 | Bad request - invalid or incomplete data |
+| 409 | Conflict - account already exists and is active |
+
+## Special Cases
+
+### Existing Active Account
+
+If a user tries to register with an email that's already associated with an active account, the endpoint throws an `IllegalStateException` which is handled globally to return a 409 Conflict status with the message:
+
+```json
+"La cuenta ya está activa. Inicia sesión."
+```
+
+### Existing Inactive Account
+
+If the email is already registered but the account is not yet verified, the system resends the verification token:
+
+```json
+"La cuenta ya existe pero no está activa. Se ha reenviado el token de verificación a tu correo."
+```
+
+<Warning>
+  The name field must contain at least one letter (including accented characters). Names with only numbers or special characters will be rejected with a 400 error.
+</Warning>
+
+<Note>
+  After successful registration, users receive a verification email with a token. The account must be verified via the `/auth/verify-email` endpoint before login is allowed.
+</Note>
+
+## Examples
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST https://api.example.com/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John",
+    "lastname": "Doe",
+    "email": "john.doe@example.com",
+    "password": "securePassword123"
+  }'
+```
+
+```java Java
+@PostMapping("/register")
+public ResponseEntity<?> register(@RequestBody RegisterUserDTO registerUserDTO) {
+    if (registerUserDTO == null || registerUserDTO.getEmail() == null || registerUserDTO.getPassword() == null) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Datos incompletos para el registro");
+    }
+    // Validación: nombre debe contener al menos una letra (A-Z o a-z)
+    String name = registerUserDTO.getName();
+    if (name == null || !name.matches(".*[A-Za-zÁÉÍÓÚáéíóúÑñ].*")) {
+        return ResponseEntity
+                .badRequest()
+                .body(java.util.Map.of("error", "El nombre debe contener al menos una letra"));
+    }
+    User existingUser = authService.getUserByEmail(registerUserDTO.getEmail());
+    if (existingUser != null) {
+        if (existingUser.isAccountActive()) {
+            throw new IllegalStateException("La cuenta ya está activa. Inicia sesión.");
+        } else {
+            authService.resendVerificationToken(existingUser);
+            return ResponseEntity.ok("La cuenta ya existe pero no está activa. Se ha reenviado el token de verificación a tu correo.");
+        }
+    }
+    User newUser = authService.registerDTO(registerUserDTO);
+    UserResponseDTO responseDTO = new UserResponseDTO();
+    responseDTO.setId(newUser.getId());
+    responseDTO.setName(newUser.getName());
+    responseDTO.setLastname(newUser.getLastname());
+    responseDTO.setEmail(newUser.getEmail());
+    newUser.setRole("USER");
+    Map<String, Object> body = new HashMap<>();
+    body.put("message", "Fuiste registrado satisfactoriamente, revisa tu casilla de correo para ingresar luego el token para activar la cuenta");
+    body.put("user", responseDTO);
+    return ResponseEntity.status(HttpStatus.CREATED).body(body);
+}
+```
+
+```json Response (Success - 201)
+{
+  "message": "Fuiste registrado satisfactoriamente, revisa tu casilla de correo para ingresar luego el token para activar la cuenta",
+  "user": {
+    "id": 456,
+    "name": "John",
+    "lastname": "Doe",
+    "email": "john.doe@example.com"
+  }
+}
+```
+
+```json Response (Invalid Name - 400)
+{
+  "error": "El nombre debe contener al menos una letra"
+}
+```
+
+</CodeGroup>

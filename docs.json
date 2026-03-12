@@ -1,122 +1,129 @@
 {
   "$schema": "https://mintlify.com/docs.json",
+  "name": "E-commerce Backend API",
   "theme": "mint",
-  "name": "Mint Starter Kit",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#3B82F6",
+    "light": "#60A5FA",
+    "dark": "#1E40AF"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/ramirolandajo/Ecommerce_DESA_2_BackEnd"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/ramirolandajo/Ecommerce_DESA_2_BackEnd"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Configuration",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "configuration/environment",
+              "configuration/database",
+              "configuration/keycloak",
+              "configuration/kafka"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Architecture",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "architecture/overview",
+              "architecture/data-model",
+              "architecture/security"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Authentication",
             "pages": [
-              "api-reference/introduction"
+              "api/auth/login",
+              "api/auth/register",
+              "api/auth/verify-email",
+              "api/auth/logout",
+              "api/auth/password-reset"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Products",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/products/list-products",
+              "api/products/get-product",
+              "api/products/filter-products",
+              "api/products/search-products",
+              "api/products/reviews",
+              "api/products/favorites"
+            ]
+          },
+          {
+            "group": "Shopping Cart",
+            "pages": [
+              "api/cart/get-cart",
+              "api/cart/add-item",
+              "api/cart/update-item",
+              "api/cart/remove-item",
+              "api/cart/clear-cart"
+            ]
+          },
+          {
+            "group": "Purchases",
+            "pages": [
+              "api/purchases/create-purchase",
+              "api/purchases/list-purchases",
+              "api/purchases/get-purchase",
+              "api/purchases/update-status"
+            ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api/users/get-profile",
+              "api/users/update-profile",
+              "api/users/addresses"
+            ]
+          },
+          {
+            "group": "Catalog",
+            "pages": [
+              "api/catalog/brands",
+              "api/catalog/categories"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Events",
+        "groups": [
+          {
+            "group": "Event Messaging",
+            "pages": [
+              "events/overview",
+              "events/purchase-events",
+              "events/product-events",
+              "events/inventory-events"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

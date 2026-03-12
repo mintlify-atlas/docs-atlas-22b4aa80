@@ -1,0 +1,458 @@
+---
+title: "Brands"
+api: "GET /brands"
+description: "Manage product brands in the e-commerce catalog"
+---
+
+## Get All Brands
+
+<api method="GET" endpoint="/brands" />
+
+Retrieve all brands in the system.
+
+### Response
+
+Returns an array of BrandDTO objects:
+
+<ResponseField name="brands" type="array">
+  <ResponseField name="id" type="long">
+    Brand unique identifier
+  </ResponseField>
+  <ResponseField name="name" type="string">
+    Brand name
+  </ResponseField>
+  <ResponseField name="active" type="boolean">
+    Whether the brand is active
+  </ResponseField>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.example.com/brands"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/brands')
+  .then(response => response.json())
+  .then(data => console.log(data));
+```
+
+```python Python
+import requests
+
+response = requests.get('https://api.example.com/brands')
+brands = response.json()
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Nike",
+    "active": true
+  },
+  {
+    "id": 2,
+    "name": "Adidas",
+    "active": true
+  },
+  {
+    "id": 3,
+    "name": "Puma",
+    "active": false
+  }
+]
+```
+
+---
+
+## Get Active Brands
+
+<api method="GET" endpoint="/brands/all" />
+
+Retrieve only active brands with their brand codes.
+
+### Response
+
+Returns an array of active brands with additional details:
+
+<ResponseField name="brands" type="array">
+  <ResponseField name="id" type="integer">
+    Brand unique identifier
+  </ResponseField>
+  <ResponseField name="name" type="string">
+    Brand name
+  </ResponseField>
+  <ResponseField name="brandCode" type="integer">
+    Stable brand code used across microservices
+  </ResponseField>
+  <ResponseField name="active" type="boolean">
+    Whether the brand is active (always true for this endpoint)
+  </ResponseField>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X GET "https://api.example.com/brands/all"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/brands/all')
+  .then(response => response.json())
+  .then(data => console.log(data));
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Nike",
+    "brandCode": 1001,
+    "active": true
+  },
+  {
+    "id": 2,
+    "name": "Adidas",
+    "brandCode": 1002,
+    "active": true
+  }
+]
+```
+
+---
+
+## Add Brand
+
+<api method="POST" endpoint="/brands/add" />
+
+Create a new brand in the system.
+
+### Request Body
+
+<ParamField body="name" type="string" required>
+  Brand name
+</ParamField>
+
+<ParamField body="active" type="boolean">
+  Whether the brand should be active (defaults to true)
+</ParamField>
+
+### Response
+
+Returns the created BrandDTO object:
+
+<ResponseField name="id" type="long">
+  Brand unique identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Brand name
+</ResponseField>
+
+<ResponseField name="active" type="boolean">
+  Whether the brand is active
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X POST "https://api.example.com/brands/add" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "New Balance",
+    "active": true
+  }'
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/brands/add', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'New Balance',
+    active: true
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+```python Python
+import requests
+
+data = {
+    'name': 'New Balance',
+    'active': True
+}
+
+response = requests.post('https://api.example.com/brands/add', json=data)
+brand = response.json()
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+{
+  "id": 4,
+  "name": "New Balance",
+  "active": true
+}
+```
+
+### Notes
+
+- If a brand with the same name already exists (case-insensitive), the existing brand is returned
+- The `active` field defaults to `true` if not provided
+
+---
+
+## Update Brand
+
+<api method="PATCH" endpoint="/brands/{id}" />
+
+Update an existing brand's information.
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  The ID of the brand to update
+</ParamField>
+
+### Request Body
+
+<ParamField body="name" type="string">
+  Updated brand name (can be set to null)
+</ParamField>
+
+<ParamField body="active" type="boolean">
+  Updated active status
+</ParamField>
+
+### Response
+
+Returns the updated BrandDTO object:
+
+<ResponseField name="id" type="long">
+  Brand unique identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Updated brand name
+</ResponseField>
+
+<ResponseField name="active" type="boolean">
+  Updated active status
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X PATCH "https://api.example.com/brands/1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Nike Sports",
+    "active": true
+  }'
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/brands/1', {
+  method: 'PATCH',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    name: 'Nike Sports',
+    active: true
+  })
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+{
+  "id": 1,
+  "name": "Nike Sports",
+  "active": true
+}
+```
+
+### Error Responses
+
+<ResponseField name="RuntimeException" type="error">
+  Brand not found - The specified brand ID does not exist
+</ResponseField>
+
+---
+
+## Activate Brand
+
+<api method="PATCH" endpoint="/brands/activate/{id}" />
+
+Activate a brand by setting its active status to true.
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  The ID of the brand to activate
+</ParamField>
+
+### Response
+
+Returns the updated BrandDTO object:
+
+<ResponseField name="id" type="long">
+  Brand unique identifier
+</ResponseField>
+
+<ResponseField name="name" type="string">
+  Brand name
+</ResponseField>
+
+<ResponseField name="active" type="boolean">
+  Active status (always true after activation)
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X PATCH "https://api.example.com/brands/activate/3"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/brands/activate/3', {
+  method: 'PATCH'
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+{
+  "id": 3,
+  "name": "Puma",
+  "active": true
+}
+```
+
+---
+
+## Delete Brand (Deactivate)
+
+<api method="DELETE" endpoint="/brands/{id}" />
+
+Deactivate a brand by setting its active status to false. This is a soft delete.
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  The ID of the brand to deactivate
+</ParamField>
+
+### Response
+
+Returns an array of all brands (including the deactivated one):
+
+<ResponseField name="brands" type="array">
+  <ResponseField name="id" type="long">
+    Brand unique identifier
+  </ResponseField>
+  <ResponseField name="name" type="string">
+    Brand name
+  </ResponseField>
+  <ResponseField name="active" type="boolean">
+    Active status
+  </ResponseField>
+</ResponseField>
+
+### Example Request
+
+<CodeGroup>
+
+```bash cURL
+curl -X DELETE "https://api.example.com/brands/3"
+```
+
+```javascript JavaScript
+fetch('https://api.example.com/brands/3', {
+  method: 'DELETE'
+})
+.then(response => response.json())
+.then(data => console.log(data));
+```
+
+</CodeGroup>
+
+### Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "name": "Nike",
+    "active": true
+  },
+  {
+    "id": 2,
+    "name": "Adidas",
+    "active": true
+  },
+  {
+    "id": 3,
+    "name": "Puma",
+    "active": false
+  }
+]
+```
+
+---
+
+## Brand Entity Structure
+
+The Brand entity contains the following fields:
+
+- **id** (Integer): Auto-generated unique identifier
+- **name** (String): Brand name (nullable)
+- **active** (boolean): Active status (defaults to true)
+- **brandCode** (Integer): Stable code used across microservices (unique, nullable)
+- **products** (List): Associated products (one-to-many relationship)
+
+## Notes
+
+- Mock synchronization endpoints (`/sync`, `/mock/*`) are disabled and return 501 Not Implemented
+- Brand synchronization should be handled through the Communication API (Core)
+- Brand deletion is a soft delete - brands are marked as inactive rather than removed
+- Brand codes provide stable identifiers across microservices

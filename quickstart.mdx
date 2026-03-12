@@ -1,80 +1,205 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quickstart'
+description: 'Get the E-commerce API up and running in minutes'
 ---
 
-## Get started in three steps
+<Note>
+  This quickstart guide will have you running the E-commerce API locally in under 5 minutes.
+</Note>
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, ensure you have the following installed:
+- Java 17 or higher
+- Maven 3.6+
+- Docker and Docker Compose
+- Git
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+<Steps>
+  <Step title="Clone the repository">
+    Clone the E-commerce backend repository to your local machine:
 
-### Step 2: Deploy your changes
+    ```bash
+    git clone <repository-url>
+    cd ecommerce-backend
+    ```
+  </Step>
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+  <Step title="Start Keycloak with Docker Compose">
+    The API uses Keycloak for authentication. Start it using Docker Compose:
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    ```bash
+    docker-compose up -d
+    ```
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    This will start Keycloak on port 8080 with:
+    - Admin credentials: `admin` / `admin`
+    - Pre-configured realm: `ecommerce`
+    - Client ID: `ecommerce-module`
+    - Client secret: `ecommerce-secret`
 
-### Step 3: Go live
+    <Note>
+      Wait for Keycloak to be fully ready (about 30 seconds). The healthcheck will verify the realm is loaded.
+    </Note>
+  </Step>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+  <Step title="Configure environment variables">
+    Create a `.env` file or export the required environment variables:
 
-## Next steps
+    <CodeGroup>
+    ```bash .env file
+    # Server
+    SERVER_PORT=8081
 
-Now that you have your docs running, explore these key features:
+    # Database
+    SPRING_DATASOURCE_URL=localhost:3306/ecommerce
+    SPRING_DATASOURCE_USERNAME=your_username
+    SPRING_DATASOURCE_PASSWORD=your_password
+
+    # JWT
+    JWT_SECRET=your-secret-key-min-256-bits
+
+    # Keycloak
+    KEYCLOAK_CLIENT_SECRET=ecommerce-secret
+
+    # Email (optional for quickstart)
+    SPRING_MAIL_USERNAME=your-email@gmail.com
+    SPRING_MAIL_PASSWORD=your-app-password
+
+    # Kafka
+    KAFKA_BOOTSTRAP=localhost:9092
+    KAFKA_USERNAME=your-kafka-user
+    KAFKA_PASSWORD=your-kafka-password
+    ```
+
+    ```bash Export commands
+    export SERVER_PORT=8081
+    export SPRING_DATASOURCE_URL=localhost:3306/ecommerce
+    export SPRING_DATASOURCE_USERNAME=your_username
+    export SPRING_DATASOURCE_PASSWORD=your_password
+    export JWT_SECRET=your-secret-key-min-256-bits
+    export KEYCLOAK_CLIENT_SECRET=ecommerce-secret
+    ```
+    </CodeGroup>
+
+    <Warning>
+      For a quick local test, you can use MySQL running on localhost. See the [Installation guide](/installation) for detailed database setup.
+    </Warning>
+  </Step>
+
+  <Step title="Build and run the application">
+    Build and start the Spring Boot application:
+
+    ```bash
+    mvn clean install
+    mvn spring-boot:run
+    ```
+
+    The API will start on `http://localhost:8081` (or your configured port).
+
+    You should see output indicating the application has started:
+
+    ```bash
+    INFO 12345 --- [main] a.e.u.ecommerce.EcommerceApplication : Started EcommerceApplication in 5.234 seconds
+    ```
+  </Step>
+
+  <Step title="Test the API">
+    Test that the API is running by making a request to register a new user:
+
+    ```bash cURL
+    curl -X POST http://localhost:8081/api/auth/register \
+      -H "Content-Type: application/json" \
+      -d '{
+        "email": "test@example.com",
+        "password": "securePassword123",
+        "name": "Test",
+        "lastname": "User"
+      }'
+    ```
+
+    Then login to get an authentication token:
+
+    ```bash cURL
+    curl -X POST http://localhost:8081/api/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{
+        "email": "test@example.com",
+        "password": "securePassword123"
+      }'
+    ```
+
+    You should receive a response with a JWT bearer token:
+
+    ```json Response
+    {
+      "success": true,
+      "bearer_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "user": {
+        "id": 1,
+        "name": "Test",
+        "lastname": "User",
+        "email": "test@example.com",
+        "addresses": []
+      }
+    }
+    ```
+  </Step>
+</Steps>
+
+## Access API Documentation
+
+Once the application is running, you can access the interactive API documentation:
+
+<Card title="Swagger UI" icon="book" href="http://localhost:8081/swagger-ui.html">
+  View and test all API endpoints with the built-in Swagger documentation
+</Card>
+
+## What's Next?
+
+Now that you have the API running locally:
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Installation Guide" icon="download" href="/installation">
+    Learn detailed setup for production environments
+  </Card>
+  
+  <Card title="Authentication" icon="lock" href="/api/auth/login">
+    Understand how authentication works with JWT and Keycloak
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/products/list-products">
+    Explore all available endpoints and their usage
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/configuration/environment">
+    Configure advanced settings and integrations
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Keycloak is not starting">
+    - Ensure port 8080 is not already in use
+    - Check Docker logs: `docker-compose logs keycloak`
+    - Wait longer for the healthcheck to pass (can take up to 1 minute)
+  </Accordion>
+
+  <Accordion title="Database connection errors">
+    - Verify MySQL is running and accessible
+    - Check your database credentials in environment variables
+    - Ensure the database `ecommerce` exists
+    - Verify the database URL format: `localhost:3306/ecommerce`
+  </Accordion>
+
+  <Accordion title="JWT token errors">
+    - Ensure JWT_SECRET is at least 256 bits (32 characters)
+    - Check that the secret doesn't contain special characters that need escaping
+  </Accordion>
+
+  <Accordion title="Port 8081 already in use">
+    - Change the SERVER_PORT environment variable to a different port
+    - Kill any existing process using port 8081
+  </Accordion>
+</AccordionGroup>

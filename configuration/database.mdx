@@ -1,0 +1,216 @@
+---
+title: 'Database Configuration'
+description: 'MySQL database setup and configuration for the E-commerce API'
+icon: 'database'
+---
+
+The E-commerce Backend API uses MySQL as its primary database with Spring Data JPA and Hibernate for object-relational mapping.
+
+## Connection Settings
+
+The application connects to MySQL using the following configuration properties:
+
+<ParamField path="spring.datasource.url" type="string" required>
+  JDBC connection URL constructed from the `SPRING_DATASOURCE_URL` environment variable.
+  
+  Format: `jdbc:mysql://${SPRING_DATASOURCE_URL}`
+  
+  <Note>
+    The environment variable should contain the host, port, and database name:
+    `mydb.example.com:3306/ecommerce_db`
+  </Note>
+</ParamField>
+
+<ParamField path="spring.datasource.username" type="string" required>
+  Database username loaded from `SPRING_DATASOURCE_USERNAME` environment variable.
+</ParamField>
+
+<ParamField path="spring.datasource.password" type="string" required>
+  Database password loaded from `SPRING_DATASOURCE_PASSWORD` environment variable.
+</ParamField>
+
+## JPA/Hibernate Configuration
+
+The following JPA and Hibernate settings are configured in `application.properties`:
+
+<CodeGroup>
+```properties JPA Settings
+# Schema management
+spring.jpa.hibernate.ddl-auto=update
+
+# SQL logging
+spring.jpa.show-sql=false
+spring.jpa.properties.hibernate.format_sql=true
+
+# Initialization
+spring.jpa.defer-datasource-initialization=false
+spring.sql.init.mode=never
+```
+</CodeGroup>
+
+### Schema Management
+
+<ParamField path="spring.jpa.hibernate.ddl-auto" type="string" default="update">
+  Controls how Hibernate manages the database schema:
+  - `update`: Update the schema if necessary (used in this application)
+  - `create`: Create the schema, destroying previous data
+  - `create-drop`: Create and drop the schema at the end of the session
+  - `validate`: Validate the schema, make no changes
+  - `none`: Do nothing
+  
+  <Warning>
+    The `update` setting is convenient for development but should be used carefully in production. Consider using database migration tools like Flyway or Liquibase for production environments.
+  </Warning>
+</ParamField>
+
+### SQL Logging
+
+<ParamField path="spring.jpa.show-sql" type="boolean" default="false">
+  When `true`, Hibernate logs all SQL statements to the console. Set to `false` in production for performance.
+</ParamField>
+
+<ParamField path="spring.jpa.properties.hibernate.format_sql" type="boolean" default="true">
+  Formats SQL statements for better readability when logging is enabled.
+</ParamField>
+
+### Initialization Settings
+
+<ParamField path="spring.jpa.defer-datasource-initialization" type="boolean" default="false">
+  Controls whether datasource initialization is deferred until after JPA EntityManagerFactory is created.
+  Set to `false` to prevent race conditions.
+</ParamField>
+
+<ParamField path="spring.sql.init.mode" type="string" default="never">
+  Controls SQL script execution on startup. Set to `never` to prevent automatic execution of `data.sql` or `schema.sql` files in production.
+</ParamField>
+
+## Embedded Database Disabled
+
+The application explicitly disables H2 and any embedded database functionality:
+
+<CodeGroup>
+```properties Embedded DB Configuration
+# Disable H2 console and embedded database
+spring.h2.console.enabled=false
+spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.h2.H2ConsoleAutoConfiguration
+spring.datasource.embedded-database-connection=none
+```
+</CodeGroup>
+
+<Note>
+  The application is configured to use only MySQL and will not fall back to an embedded database if the MySQL connection fails.
+</Note>
+
+## MySQL Setup for Development
+
+For local development, you can run MySQL using Docker:
+
+<CodeGroup>
+```bash Docker Compose
+# Add to docker-compose.yml
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ecommerce_db
+      MYSQL_USER: ecommerce_user
+      MYSQL_PASSWORD: ecommerce_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+```
+
+```bash Direct Docker
+docker run -d \
+  --name ecommerce-mysql \
+  -e MYSQL_ROOT_PASSWORD=rootpassword \
+  -e MYSQL_DATABASE=ecommerce_db \
+  -e MYSQL_USER=ecommerce_user \
+  -e MYSQL_PASSWORD=ecommerce_pass \
+  -p 3306:3306 \
+  mysql:8.0
+```
+</CodeGroup>
+
+Then set your environment variables:
+
+```bash
+SPRING_DATASOURCE_URL=localhost:3306/ecommerce_db
+SPRING_DATASOURCE_USERNAME=ecommerce_user
+SPRING_DATASOURCE_PASSWORD=ecommerce_pass
+```
+
+## AWS RDS Configuration
+
+For production deployments using AWS RDS MySQL:
+
+1. Create an RDS MySQL instance in your VPC
+2. Configure security groups to allow connections from your application
+3. Use the RDS endpoint in your environment variables:
+
+```bash
+SPRING_DATASOURCE_URL=your-rds-instance.cluster-xxx.us-east-1.rds.amazonaws.com:3306/ecommerce
+SPRING_DATASOURCE_USERNAME=admin
+SPRING_DATASOURCE_PASSWORD=${RDS_PASSWORD}
+```
+
+<Warning>
+  Always use IAM authentication or AWS Secrets Manager for RDS credentials in production. Never hardcode database passwords.
+</Warning>
+
+## Connection Pooling
+
+Spring Boot automatically configures HikariCP as the connection pool. You can tune it with additional properties if needed:
+
+<CodeGroup>
+```properties Optional HikariCP Settings
+# Maximum pool size
+spring.datasource.hikari.maximum-pool-size=10
+
+# Minimum idle connections
+spring.datasource.hikari.minimum-idle=5
+
+# Connection timeout
+spring.datasource.hikari.connection-timeout=30000
+
+# Idle timeout
+spring.datasource.hikari.idle-timeout=600000
+
+# Max lifetime
+spring.datasource.hikari.max-lifetime=1800000
+```
+</CodeGroup>
+
+## Troubleshooting
+
+### Connection Refused
+
+If you see connection errors, verify:
+- MySQL is running and accessible
+- Firewall rules allow connections on port 3306
+- Connection URL format is correct
+- Credentials are valid
+
+### Schema Update Issues
+
+If schema updates aren't being applied:
+- Check that `spring.jpa.hibernate.ddl-auto=update`
+- Verify the database user has DDL privileges (CREATE, ALTER, DROP)
+- Review Hibernate logs for schema validation errors
+
+### Performance Issues
+
+- Enable SQL logging temporarily to identify slow queries
+- Review connection pool settings
+- Consider adding database indexes for frequently queried fields
+- Monitor database metrics in production
