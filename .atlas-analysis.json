@@ -1,0 +1,150 @@
+{
+  "projectType": "api-service",
+  "projectName": "E-commerce Backend API",
+  "projectDescription": "A Spring Boot e-commerce backend API with event-driven architecture, Keycloak authentication, and microservices integration via Kafka messaging.",
+  "theme": "mint",
+  "primaryColor": "#3B82F6",
+  "lightColor": "#60A5FA",
+  "darkColor": "#1E40AF",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment",
+              "configuration/database",
+              "configuration/keycloak",
+              "configuration/kafka"
+            ]
+          },
+          {
+            "group": "Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/data-model",
+              "architecture/security"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/auth/login",
+              "api/auth/register",
+              "api/auth/verify-email",
+              "api/auth/logout",
+              "api/auth/password-reset"
+            ]
+          },
+          {
+            "group": "Products",
+            "pages": [
+              "api/products/list-products",
+              "api/products/get-product",
+              "api/products/filter-products",
+              "api/products/search-products",
+              "api/products/reviews",
+              "api/products/favorites"
+            ]
+          },
+          {
+            "group": "Shopping Cart",
+            "pages": [
+              "api/cart/get-cart",
+              "api/cart/add-item",
+              "api/cart/update-item",
+              "api/cart/remove-item",
+              "api/cart/clear-cart"
+            ]
+          },
+          {
+            "group": "Purchases",
+            "pages": [
+              "api/purchases/create-purchase",
+              "api/purchases/list-purchases",
+              "api/purchases/get-purchase",
+              "api/purchases/update-status"
+            ]
+          },
+          {
+            "group": "Users",
+            "pages": [
+              "api/users/get-profile",
+              "api/users/update-profile",
+              "api/users/addresses"
+            ]
+          },
+          {
+            "group": "Catalog",
+            "pages": [
+              "api/catalog/brands",
+              "api/catalog/categories"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Events",
+        "groups": [
+          {
+            "group": "Event Messaging",
+            "pages": [
+              "events/overview",
+              "events/purchase-events",
+              "events/product-events",
+              "events/inventory-events"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "RESTful API with Spring Boot 3.5",
+    "JWT and Keycloak authentication",
+    "Event-driven architecture with Kafka",
+    "Product catalog with reviews and ratings",
+    "Shopping cart and purchase management",
+    "User authentication and profile management",
+    "MySQL database with JPA/Hibernate",
+    "Docker and docker-compose support",
+    "OpenAPI/Swagger documentation"
+  ],
+  "publicApiSurface": [
+    "POST /auth/login",
+    "POST /auth/register",
+    "POST /auth/verify-email",
+    "POST /auth/logout",
+    "GET /products",
+    "GET /products/{id}",
+    "POST /products/filter",
+    "POST /products/code/{productCode}/review",
+    "POST /products/favourite/{productCode}",
+    "GET /cart",
+    "POST /cart/add",
+    "PATCH /cart/item/{itemId}",
+    "DELETE /cart/item/{itemId}",
+    "POST /purchases",
+    "GET /purchases",
+    "GET /purchases/{id}",
+    "GET /users/profile",
+    "PATCH /users/profile",
+    "GET /brands",
+    "GET /categories"
+  ]
+}
